@@ -14,7 +14,7 @@
 		D80264062F3A5E04003C4B4B /* Exceptions for "TrackIt" folder in "TrackIt" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
+				Application/Info.plist,
 			);
 			target = D80263F02F3A5E02003C4B4B /* TrackIt */;
 		};
