@@ -58,7 +58,10 @@ struct WeekGridView: View {
                         let isToday = ds == vm.todayStr
                         let taskCount = vm.tasks(for: date).filter { !$0.isCompleted }.count
                         Button {
-                            withAnimation(.snappySpring) { vm.selectDay(date) }
+                            withAnimation(.sheetSpring) {
+                                vm.selectDay(date)
+                                weekModalDate = date
+                            }
                         } label: {
                             VStack(spacing: 1) {
                                 Text("\(dayNum)")

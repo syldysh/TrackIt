@@ -22,21 +22,41 @@ final class AddTaskViewModel: ObservableObject {
     @Published var addDateMode: Int = 0
     @Published var newDuration: Int16 = 0
     @Published var showDurationPicker = false
+    @Published var reminderEnabled = false
+    @Published var notificationPermissionMessage: String? = nil
+    @Published var calendarSyncEnabled = false
+    @Published var calendarPermissionMessage: String? = nil
 
-    // MARK: - Зависимость
+    // MARK: - Зависимости
 
     private let repository: any TaskRepositoryProtocol
+    private let notificationService: any NotificationServiceProtocol
+    private let calendarSyncService: any CalendarSyncServiceProtocol
 
     // MARK: - Init
 
-    init(repository: any TaskRepositoryProtocol) {
+    init(
+        repository: any TaskRepositoryProtocol,
+        notificationService: any NotificationServiceProtocol,
+        calendarSyncService: any CalendarSyncServiceProtocol
+    ) {
         self.repository = repository
+        self.notificationService = notificationService
+        self.calendarSyncService = calendarSyncService
     }
 
     // MARK: - Вычисляемые свойства
 
     var canAddTask: Bool {
         !newTitle.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    var canShowReminderToggle: Bool {
+        showTimePicker
+    }
+
+    var canShowCalendarSyncToggle: Bool {
+        showTimePicker
     }
 
     // MARK: - Открыть форму (новая задача)
@@ -58,6 +78,10 @@ final class AddTaskViewModel: ObservableObject {
             addDateMode = 0
         }
         showTimePicker = false
+        reminderEnabled = false
+        notificationPermissionMessage = nil
+        calendarSyncEnabled = false
+        calendarPermissionMessage = nil
         showAddTask = true
     }
 
@@ -65,6 +89,10 @@ final class AddTaskViewModel: ObservableObject {
     func prepareAddTaskAt(hour: Int, minute: Int) {
         prepareAddTask(selectedDate: newDate)
         showTimePicker = true
+        reminderEnabled = false
+        notificationPermissionMessage = nil
+        calendarSyncEnabled = false
+        calendarPermissionMessage = nil
         var comps = RuDate.calendar.dateComponents([.year, .month, .day], from: newDate)
         comps.hour = hour
         comps.minute = minute
@@ -78,6 +106,10 @@ final class AddTaskViewModel: ObservableObject {
         showAddTask = true
         newTitle = ""
         showTimePicker = true
+        reminderEnabled = false
+        notificationPermissionMessage = nil
+        calendarSyncEnabled = false
+        calendarPermissionMessage = nil
         var comps = RuDate.calendar.dateComponents([.year, .month, .day], from: date)
         comps.hour = hour
         comps.minute = minute
@@ -117,6 +149,10 @@ final class AddTaskViewModel: ObservableObject {
 
         newDuration = task.duration
         showDurationPicker = task.duration > 0
+        reminderEnabled = task.reminderEnabled && showTimePicker
+        notificationPermissionMessage = nil
+        calendarSyncEnabled = task.calendarSyncEnabled && showTimePicker
+        calendarPermissionMessage = nil
         showAddTask = true
     }
 
@@ -131,12 +167,90 @@ final class AddTaskViewModel: ObservableObject {
                      RuDate.calendar.component(.minute, from: timeDate))
             : nil
 
+        let shouldRemind = showTimePicker && reminderEnabled
+        let shouldSyncCalendar = showTimePicker && calendarSyncEnabled
         if let task = editingTask {
-            repository.update(task, title: title, date: newDate, time: timeStr, duration: newDuration)
+            if let updated = repository.update(
+                task,
+                title: title,
+                date: newDate,
+                time: timeStr,
+                duration: newDuration,
+                reminderEnabled: shouldRemind,
+                calendarSyncEnabled: shouldSyncCalendar
+            ) {
+                syncSideEffects(for: updated)
+            }
         } else {
-            repository.addScheduledTask(title: title, date: newDate, time: timeStr, duration: newDuration)
+            let created = repository.addScheduledTask(
+                title: title,
+                date: newDate,
+                time: timeStr,
+                duration: newDuration,
+                reminderEnabled: shouldRemind,
+                calendarSyncEnabled: shouldSyncCalendar
+            )
+            syncSideEffects(for: created)
         }
         reset()
+    }
+
+    // MARK: - Уведомления
+
+    func setReminderEnabled(_ enabled: Bool) {
+        guard enabled else {
+            disableReminder()
+            return
+        }
+
+        guard showTimePicker else {
+            disableReminder()
+            return
+        }
+
+        notificationService.requestAuthorizationIfNeeded { [weak self] granted in
+            guard let self else { return }
+            self.reminderEnabled = granted
+            self.notificationPermissionMessage = granted ? nil : Self.permissionDeniedText
+        }
+    }
+
+    func disableReminder() {
+        reminderEnabled = false
+        notificationPermissionMessage = nil
+    }
+
+    // MARK: - Календарь
+
+    func setCalendarSyncEnabled(_ enabled: Bool) {
+        guard enabled else {
+            disableCalendarSync()
+            return
+        }
+
+        guard showTimePicker else {
+            disableCalendarSync()
+            return
+        }
+
+        calendarSyncService.requestAuthorizationIfNeeded { [weak self] granted in
+            guard let self else { return }
+            self.calendarSyncEnabled = granted
+            self.calendarPermissionMessage = granted ? nil : Self.calendarPermissionDeniedText
+        }
+    }
+
+    func disableCalendarSync() {
+        calendarSyncEnabled = false
+        calendarPermissionMessage = nil
+    }
+
+    private func syncSideEffects(for task: Task) {
+        notificationService.syncNotification(for: task)
+        calendarSyncService.syncEvent(for: task) { [weak self] eventIdentifier in
+            guard task.calendarEventIdentifier != eventIdentifier else { return }
+            _ = self?.repository.updateCalendarEventIdentifier(eventIdentifier, for: task.id)
+        }
     }
 
     // MARK: - Сбросить форму
@@ -150,5 +264,12 @@ final class AddTaskViewModel: ObservableObject {
         addDateMode = 0
         newDuration = 0
         newDate = RuDate.startOfDay(Date())
+        reminderEnabled = false
+        notificationPermissionMessage = nil
+        calendarSyncEnabled = false
+        calendarPermissionMessage = nil
     }
+
+    private static let permissionDeniedText = "Разрешение не выдано. Включите уведомления для TrackIt в настройках iOS."
+    private static let calendarPermissionDeniedText = "Разрешение не выдано. Включите доступ к календарям для TrackIt в настройках iOS."
 }

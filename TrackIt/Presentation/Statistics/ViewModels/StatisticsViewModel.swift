@@ -25,10 +25,7 @@ final class StatisticsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    // MARK: - Метрики
-
     var completedCount: Int { repository.completedCount }
-    var totalScheduled: Int { repository.totalScheduled }
 
     var streakDays: Int {
         StatisticsService.streakDays(tasks: repository.tasks)
@@ -40,5 +37,13 @@ final class StatisticsViewModel: ObservableObject {
 
     func weeklyActivity() -> [Int] {
         StatisticsService.weeklyActivity(tasks: repository.tasks)
+    }
+
+    var completedTasks: [Task] {
+        StatisticsService.completedTasks(tasks: repository.tasks)
+    }
+
+    var streakSupportText: String {
+        streakDays > 0 ? "Молодец! Продолжай дальше 🔥" : "Начните серию сегодня — это хороший момент"
     }
 }

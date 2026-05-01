@@ -1,34 +1,30 @@
-//
-//  InboxView.swift
-//  TrackIt
-//
-//  Экран «Планировщик» — входящие задачи без даты.
-//
-
 import SwiftUI
 
 struct InboxView: View {
     @EnvironmentObject var vm: InboxViewModel
 
-    @State private var sheetDragOffset: CGFloat = 0
+    @StateObject private var addTaskDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
     @State private var showPlanningMode = false
     @FocusState private var inputFocused: Bool
 
     var body: some View {
         ZStack {
             if showPlanningMode {
+                Color.black.opacity(0.72)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(9)
+
                 PlanningModeView(isPresented: $showPlanningMode, initialQueue: vm.inboxTasks)
                     .environmentObject(vm)
                     .transition(.move(edge: .trailing))
                     .id("planning")
+                    .zIndex(10)
             } else {
                 mainContent
                 floatingButtons
                 if vm.showAddModal {
-                    Color.black.opacity(0.3)
-                        .background(.ultraThinMaterial)
-                        .ignoresSafeArea()
-                        .onTapGesture { dismissAdd() }
+                    ModalDimBackground(dragState: addTaskDragState, baseOpacity: 0.3, onTap: dismissAdd)
                         .transition(.opacity)
                         .zIndex(19)
                 }
@@ -40,6 +36,9 @@ struct InboxView: View {
             }
         }
         .background(TabBarHider(hide: vm.showAddModal || showPlanningMode))
+        .onChange(of: vm.showAddModal) { _, isPresented in
+            if isPresented { addTaskDragState.reset() }
+        }
     }
 
     // MARK: - Main Content
@@ -71,27 +70,37 @@ struct InboxView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Button {
-                withAnimation(.sheetSpring) { vm.showAddModal = true }
-                inputFocused = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 72, height: 72)
-                    .background(Color.brandAccent)
-                    .clipShape(Circle())
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 16) {
+                    Spacer(minLength: 24)
+                    Button {
+                        withAnimation(.sheetSpring) { vm.showAddModal = true }
+                        inputFocused = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 72, height: 72)
+                            .background(Color.brandAccent)
+                            .clipShape(Circle())
+                    }
+                    Text("Нет задач")
+                        .font(.system(size: 28, weight: .bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                    (Text("Нажмите + чтобы добавить задачу, а\nзатем запланируйте её с помощью ")
+                        + Text(Image(systemName: "bolt.fill")).foregroundColor(.orange))
+                        .font(.system(size: 17))
+                        .foregroundColor(Color(.secondaryLabel))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 24)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: proxy.size.height)
+                .padding(.horizontal, 24)
             }
-            Text("Нет задач")
-                .font(.system(size: 28, weight: .bold))
-            (Text("Нажмите + чтобы добавить задачу, а\nзатем запланируйте её с помощью ")
-                + Text(Image(systemName: "bolt.fill")).foregroundColor(.orange))
-                .font(.system(size: 17))
-                .foregroundColor(Color(.secondaryLabel))
-                .multilineTextAlignment(.center)
-            Spacer()
         }
     }
 
@@ -176,19 +185,13 @@ struct InboxView: View {
             }
             .background(Color(.systemBackground))
             .cornerRadius(20, corners: [.topLeft, .topRight])
-            .offset(y: sheetDragOffset)
+            .offset(y: addTaskDragState.offset)
         }
         .ignoresSafeArea(edges: .bottom)
     }
 
     private var sheetHeader: some View {
-        VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(.systemGray4))
-                .frame(width: 40, height: 4)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-
+        ModalDragHandle(dragState: addTaskDragState, onDismiss: dismissAdd) {
             HStack {
                 Text("Новая задача")
                     .font(.system(size: 20, weight: .semibold))
@@ -204,19 +207,6 @@ struct InboxView: View {
             }
             .padding(.horizontal, 20)
         }
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 20)
-                .onChanged { v in
-                    if v.translation.height > 0 {
-                        withAnimation(.dragFollow) { sheetDragOffset = v.translation.height }
-                    }
-                }
-                .onEnded { v in
-                    if v.translation.height > 80 { dismissAdd() }
-                    else { withAnimation(.smoothSpring) { sheetDragOffset = 0 } }
-                }
-        )
         .padding(.bottom, 12)
     }
 
@@ -249,6 +239,8 @@ struct InboxView: View {
                 Text("Отмена")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.red)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
                     .background(Color(.systemGray6))
@@ -258,6 +250,8 @@ struct InboxView: View {
                 Text("Добавить")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
                     .background(vm.canAdd ? Color.brandAccent : Color.brandAccent.opacity(0.35))
@@ -275,7 +269,6 @@ struct InboxView: View {
     private func commit() {
         withAnimation(.sheetSpring) { vm.commitTask() }
         inputFocused = false
-        sheetDragOffset = 0
     }
 
     private func dismissAdd() {
@@ -284,6 +277,5 @@ struct InboxView: View {
             vm.newText = ""
         }
         inputFocused = false
-        sheetDragOffset = 0
     }
 }

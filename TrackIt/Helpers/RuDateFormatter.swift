@@ -20,14 +20,6 @@ enum RuDate {
 
     private static let locale = Locale(identifier: "ru_RU")
     private static let fallbackShortWeekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-    private static let fallbackMonthNamesNominative = [
-        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-    ]
-    private static let fallbackMonthNamesGenitive = [
-        "Января", "Февраля", "Марта", "Апреля", "Мая", "Июня",
-        "Июля", "Августа", "Сентября", "Октября", "Ноября", "Декабря"
-    ]
 
     // Календарь с понедельником как первым днём недели
     static let calendar: Calendar = {
@@ -55,46 +47,14 @@ enum RuDate {
         return Array(symbols.dropFirst()) + [first]
     }()
 
-    // MARK: - Названия месяцев
-
-    // Формат: "Month year"
-    static let monthNamesNominative: [String] = {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        return formatter.standaloneMonthSymbols
-    }()
-
-    // Используется в контексте: «5 Января» и тд
-    static let monthNamesGenitive: [String] = {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        // Делаем первую букву заглавной
-        return formatter.monthSymbols.map { $0.prefix(1).uppercased() + $0.dropFirst() }
-    }()
-
     private static func normalizeWeekdayIndex(_ index: Int) -> Int {
         let count = fallbackShortWeekdays.count
-        return ((index % count) + count) % count
-    }
-
-    private static func normalizeMonthIndex(_ index: Int) -> Int {
-        let count = fallbackMonthNamesNominative.count
         return ((index % count) + count) % count
     }
 
     static func shortWeekday(at index: Int) -> String {
         let idx = normalizeWeekdayIndex(index)
         return shortWeekdays[safe: idx] ?? fallbackShortWeekdays[safe: idx] ?? "Пн"
-    }
-
-    static func monthNameNominative(at index: Int) -> String {
-        let idx = normalizeMonthIndex(index)
-        return monthNamesNominative[safe: idx] ?? fallbackMonthNamesNominative[safe: idx] ?? "Январь"
-    }
-
-    static func monthNameGenitive(at index: Int) -> String {
-        let idx = normalizeMonthIndex(index)
-        return monthNamesGenitive[safe: idx] ?? fallbackMonthNamesGenitive[safe: idx] ?? "Января"
     }
 
     // MARK: - Форматирование дат
@@ -107,14 +67,25 @@ enum RuDate {
         return f
     }()
 
+    private static let monthYearFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = locale
+        f.calendar = calendar
+        f.dateFormat = "LLLL yyyy"
+        return f
+    }()
+
+    private static let dayMonthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = locale
+        f.calendar = calendar
+        f.dateFormat = "d MMMM"
+        return f
+    }()
+
     // Формат yyyy-MM-dd
     static func isoString(from date: Date) -> String {
         isoFormatter.string(from: date)
-    }
-
-    // Разбирает ISO-строку обратно в Date
-    static func date(from iso: String) -> Date {
-        isoFormatter.date(from: iso) ?? Date()
     }
 
     // ISO-номер дня недели: 0 = Пн, 1 = Вт, ..., 6 = Вс
@@ -157,15 +128,13 @@ enum RuDate {
 
     // MARK: - Подписи для UI
 
-    // Всегда «Пн, 5 Января» — без замены на Сегодня/Завтра
+    // Всегда «Пн, 5 января» — без замены на Сегодня/Завтра
     static func dateDayLabel(_ date: Date) -> String {
         let weekday = isoWeekday(date)
-        let day = calendar.component(.day, from: date)
-        let month = calendar.component(.month, from: date) - 1
-        return "\(shortWeekday(at: weekday)), \(day) \(monthNameGenitive(at: month))"
+        return "\(shortWeekday(at: weekday)), \(dayMonthFormatter.string(from: date))"
     }
 
-    // «Сегодня», «Завтра» или «Пн, 5 Января»
+    // «Сегодня», «Завтра» или «Пн, 5 января»
     static func dayLabel(_ date: Date) -> String {
         let today = startOfDay(Date())
         let target = startOfDay(date)
@@ -174,12 +143,10 @@ enum RuDate {
         if isoString(from: target) == isoString(from: addDays(today, 1)) { return "Завтра" }
 
         let weekday = isoWeekday(date)
-        let day = calendar.component(.day, from: date)
-        let month = calendar.component(.month, from: date) - 1
-        return "\(shortWeekday(at: weekday)), \(day) \(monthNameGenitive(at: month))"
+        return "\(shortWeekday(at: weekday)), \(dayMonthFormatter.string(from: date))"
     }
 
-    // Короткая подпись: «5 Января» (без дня недели)
+    // Короткая подпись: «5 января» (без дня недели)
     static func shortDayLabel(_ date: Date) -> String {
         let today = startOfDay(Date())
         let target = startOfDay(date)
@@ -187,9 +154,17 @@ enum RuDate {
         if isoString(from: target) == isoString(from: today) { return "Сегодня" }
         if isoString(from: target) == isoString(from: addDays(today, 1)) { return "Завтра" }
 
-        let day = calendar.component(.day, from: date)
-        let month = calendar.component(.month, from: date) - 1
-        return "\(day) \(monthNameGenitive(at: month))"
+        return dayMonthFormatter.string(from: date)
+    }
+
+    static func monthYearTitle(year: Int, month: Int) -> String {
+        let components = DateComponents(year: year, month: month + 1, day: 1)
+        guard let date = calendar.date(from: components) else { return "" }
+        return monthYearTitle(for: date)
+    }
+
+    static func monthYearTitle(for date: Date) -> String {
+        monthYearFormatter.string(from: date)
     }
 
 

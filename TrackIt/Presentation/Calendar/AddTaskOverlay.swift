@@ -13,11 +13,14 @@ struct AddTaskOverlay: View {
     // Отдельный ObservedObject — чтобы работали $-биндинги к @Published-свойствам
     @ObservedObject var formVM: AddTaskViewModel
     var addFocused: FocusState<Bool>.Binding
+    @ObservedObject var dragState: ModalDragState
+    let onDismiss: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
             sheetContent
+                .offset(y: dragState.offset)
         }
         .ignoresSafeArea(edges: .bottom)
     }
@@ -26,28 +29,29 @@ struct AddTaskOverlay: View {
 
     private var sheetContent: some View {
         VStack(spacing: 0) {
-            grabHandle
-            titleBar
+            dragArea
             Group {
-                if formVM.addDateMode == 2 {
+                if shouldScrollForm {
                     ScrollView { formFields }
                 } else {
                     formFields
                 }
             }
         }
-        .fixedSize(horizontal: false, vertical: formVM.addDateMode != 2)
-        .frame(maxHeight: formVM.addDateMode == 2 ? UIScreen.main.bounds.height * 0.9 : nil)
+        .fixedSize(horizontal: false, vertical: !shouldScrollForm)
+        .frame(maxHeight: shouldScrollForm ? UIScreen.main.bounds.height * 0.9 : nil)
         .background(Color(.systemBackground))
         .cornerRadius(20, corners: [.topLeft, .topRight])
     }
 
-    private var grabHandle: some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(Color(.systemGray4))
-            .frame(width: 40, height: 4)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+    private var shouldScrollForm: Bool {
+        formVM.addDateMode == 2 || formVM.showTimePicker || formVM.showDurationPicker
+    }
+
+    private var dragArea: some View {
+        ModalDragHandle(dragState: dragState, onDismiss: dismiss) {
+            titleBar
+        }
     }
 
     private var titleBar: some View {
@@ -75,6 +79,26 @@ struct AddTaskOverlay: View {
             titleField
             dateSection
             TimePickerSection(isShowing: $formVM.showTimePicker, timeDate: $formVM.timeDate)
+                .onChange(of: formVM.showTimePicker) { _, isShowing in
+                    if !isShowing {
+                        formVM.disableReminder()
+                        formVM.disableCalendarSync()
+                    }
+                }
+            if formVM.canShowReminderToggle {
+                NotificationToggleSection(
+                    isOn: formVM.reminderEnabled,
+                    message: formVM.notificationPermissionMessage,
+                    onChange: { formVM.setReminderEnabled($0) }
+                )
+            }
+            if formVM.canShowCalendarSyncToggle {
+                CalendarSyncToggleSection(
+                    isOn: formVM.calendarSyncEnabled,
+                    message: formVM.calendarPermissionMessage,
+                    onChange: { formVM.setCalendarSyncEnabled($0) }
+                )
+            }
             DurationPickerSection(isShowing: $formVM.showDurationPicker, duration: $formVM.newDuration)
             actionButtons
         }
@@ -143,6 +167,8 @@ struct AddTaskOverlay: View {
                 }
                 Text(label)
                     .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -160,6 +186,8 @@ struct AddTaskOverlay: View {
                 Text("Отмена")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.red)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
                     .background(Color(.systemGray6))
@@ -172,6 +200,8 @@ struct AddTaskOverlay: View {
                 Text(formVM.editingTask != nil ? "Сохранить" : "Добавить")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
                     .background(formVM.canAddTask ? Color.brandAccent : Color.brandAccent.opacity(0.35))
@@ -187,7 +217,6 @@ struct AddTaskOverlay: View {
     // MARK: - Dismiss
 
     private func dismiss() {
-        withAnimation(.sheetSpring) { formVM.reset() }
-        addFocused.wrappedValue = false
+        onDismiss()
     }
 }

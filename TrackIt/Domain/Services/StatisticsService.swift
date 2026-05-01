@@ -49,4 +49,15 @@ enum StatisticsService {
             }.count
         }
     }
+
+    static func completedTasks(tasks: [Task]) -> [Task] {
+        tasks
+            .filter { $0.isCompleted }
+            .sorted {
+                let lhsDate = $0.dateScheduled ?? .distantPast
+                let rhsDate = $1.dateScheduled ?? .distantPast
+                if lhsDate != rhsDate { return lhsDate > rhsDate }
+                return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+            }
+    }
 }

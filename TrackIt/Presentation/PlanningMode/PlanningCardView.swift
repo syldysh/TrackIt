@@ -11,6 +11,11 @@ struct PlanningCardView: View {
     let task: Task
     let totalRemaining: Int
     let offset: CGSize
+    let onSkip: () -> Void
+    let onDelete: () -> Void
+    let onSchedule: () -> Void
+
+    private static let hPadding: CGFloat = 20
 
     private var progress: CGFloat {
         let ax = abs(offset.width)
@@ -24,7 +29,7 @@ struct PlanningCardView: View {
     }
 
     private var activeDirection: SwipeDirection {
-        if offset.width > 20 { return .right }
+        if offset.width > 20  { return .right }
         if offset.width < -20 { return .left }
         if offset.height > 20 { return .down }
         return .none
@@ -34,23 +39,22 @@ struct PlanningCardView: View {
 
     var body: some View {
         ZStack {
-            colorBackdrop
-            stackCards
             mainCard
         }
+        .background {
+            colorBackdrop
+        }
     }
-
-    // MARK: - Цветная подложка
 
     @ViewBuilder
     private var colorBackdrop: some View {
         switch activeDirection {
         case .right:
-            backdropCard(color: .brandGreen, icon: "calendar.badge.plus", progress: progress)
+            backdropCard(color: .brandGreen,  icon: "calendar.badge.plus", progress: progress)
         case .left:
-            backdropCard(color: .brandOrange, icon: "arrow.uturn.left", progress: progress)
+            backdropCard(color: .brandOrange, icon: "arrow.uturn.left",    progress: progress)
         case .down:
-            backdropCard(color: .brandRed, icon: "trash", progress: progress)
+            backdropCard(color: .brandRed,    icon: "trash",               progress: progress)
         case .none:
             EmptyView()
         }
@@ -59,8 +63,7 @@ struct PlanningCardView: View {
     private func backdropCard(color: Color, icon: String, progress: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: 20)
             .fill(color.opacity(Double(progress) * 0.35))
-            .frame(height: 420)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Self.hPadding)
             .overlay(
                 Image(systemName: icon)
                     .font(.system(size: 40, weight: .medium))
@@ -68,49 +71,39 @@ struct PlanningCardView: View {
             )
     }
 
-    // MARK: - Stack Effect
-
-    private var stackCards: some View {
-        ForEach(Array((1...2).reversed()), id: \.self) { i in
-            if totalRemaining > i {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.systemBackground))
-                    .frame(height: 420)
-                    .padding(.horizontal, CGFloat(24 + i * 8))
-                    .offset(y: CGFloat(i * 10))
-                    .opacity(i == 1 ? 0.6 : 0.3)
-            }
-        }
-    }
-
-    // MARK: - Main Card
-
     private var mainCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: 3)
                 .fill(topBarColor)
-                .frame(height: 6)
+                .frame(height: 5)
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
                 badge
+                    .padding(.bottom, 18)
+
                 Text(task.title)
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: 26, weight: .bold))
                     .foregroundColor(Color(.label))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Spacer()
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.78)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.bottom, 20)
+
                 Divider()
-                swipeHints
+
+                actionIcons
+                    .padding(.top, 10)
+                    .padding(.bottom, 4)
             }
             .padding(20)
         }
-        .frame(height: 420)
         .background(Color(.systemBackground))
         .cornerRadius(20)
-        .shadow(color: .black.opacity(0.12), radius: 16, y: 4)
-        .padding(.horizontal, 20)
+        .shadow(color: .black.opacity(0.14), radius: 20, y: 6)
+        .padding(.horizontal, Self.hPadding)
         .offset(offset)
         .rotationEffect(.degrees(Double(offset.width / 30)))
-        .animation(.dragFollow, value: offset)
     }
 
     private var topBarColor: Color {
@@ -137,32 +130,30 @@ struct PlanningCardView: View {
         .cornerRadius(12)
     }
 
-    private var swipeHints: some View {
+    private var actionIcons: some View {
         HStack(spacing: 0) {
-            hintLabel("arrow.left", "Пропустить", color: .brandOrange,
-                      active: activeDirection == .left)
+            iconButton("arrow.uturn.left", color: .brandOrange,
+                       isActive: activeDirection == .left,   action: onSkip)
             Spacer()
-            hintLabel("arrow.down", "Удалить", color: .brandRed,
-                      active: activeDirection == .down)
+            iconButton("trash",            color: .brandRed,
+                       isActive: activeDirection == .down,   action: onDelete)
             Spacer()
-            hintLabel("arrow.right", "Запланировать", color: .brandGreen,
-                      active: activeDirection == .right, trailing: true)
+            iconButton("calendar.badge.plus", color: .brandGreen,
+                       isActive: activeDirection == .right,  action: onSchedule)
         }
-        .padding(.top, 8)
     }
 
-    private func hintLabel(_ icon: String, _ text: String, color: Color,
-                           active: Bool, trailing: Bool = false) -> some View {
-        HStack(spacing: 4) {
-            if !trailing {
-                Image(systemName: icon).font(.system(size: 11, weight: .semibold))
-            }
-            Text(text).font(.system(size: 13, weight: active ? .bold : .medium))
-            if trailing {
-                Image(systemName: icon).font(.system(size: 11, weight: .semibold))
-            }
+    private func iconButton(_ icon: String, color: Color,
+                            isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundColor(color)
+                .frame(width: 52, height: 52)
+                .background(color.opacity(isActive ? 0.22 : 0.12))
+                .clipShape(Circle())
         }
-        .foregroundColor(color)
-        .opacity(active ? 1 : 0.6)
+        .scaleEffect(isActive ? 1.12 : 1.0)
+        .animation(.smoothSpring, value: isActive)
     }
 }

@@ -122,7 +122,13 @@ struct DayTimelineContent: View {
                 let isDragging = draggingTaskID == task.id
 
                 ZStack(alignment: .topTrailing) {
-                    taskBlock(task: task, time: time, height: blockH)
+                    DayTimelineTaskBlockView(
+                        task: task,
+                        time: time,
+                        duration: Int(task.duration),
+                        height: blockH,
+                        isCompact: hourHeight < 60
+                    )
                     if menuTaskID == task.id {
                         actionButtons(for: task)
                             .transition(.scale.combined(with: .opacity))
@@ -147,27 +153,6 @@ struct DayTimelineContent: View {
         }
     }
 
-    private func taskBlock(task: Task, time: String, height: CGFloat) -> some View {
-        let isCompact = hourHeight < 60
-        return VStack(alignment: .leading, spacing: isCompact ? 1 : 2) {
-            Text(task.title)
-                .font(.system(size: isCompact ? 12 : 13, weight: .semibold))
-                .lineLimit(height > (isCompact ? 32 : 40) ? 2 : 1)
-            if height > (isCompact ? 28 : 36) {
-                Text(timeRange(time: time, duration: Int(task.duration)))
-                    .font(.system(size: isCompact ? 10 : 11))
-                    .foregroundColor(Color(.label).opacity(0.6))
-            }
-        }
-        .padding(.horizontal, isCompact ? 8 : 10)
-        .padding(.vertical, isCompact ? 4 : 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: height)
-        .background(Color.taskBlock)
-        .cornerRadius(isCompact ? 8 : 10)
-        .contentShape(Rectangle())
-    }
-
     // MARK: - Перетаскивание
 
     private func moveGesture(task: Task, origH: Int, origM: Int) -> some Gesture {
@@ -176,6 +161,7 @@ struct DayTimelineContent: View {
             .onChanged { value in
                 if case .second(true, let drag) = value, let drag = drag {
                     if abs(drag.translation.height) > 5 {
+                        vm.isSwipingTask = true
                         if menuTaskID != nil { withAnimation(.snappySpring) { menuTaskID = nil } }
                         draggingTaskID = task.id
                         dragYOffset = drag.translation.height
@@ -183,6 +169,7 @@ struct DayTimelineContent: View {
                 }
             }
             .onEnded { value in
+                vm.isSwipingTask = false
                 if draggingTaskID == task.id, abs(dragYOffset) > 10 {
                     let origMin = origH * 60 + origM
                     let delta = Int(dragYOffset / hourHeight * 60)
@@ -205,31 +192,17 @@ struct DayTimelineContent: View {
 
     private func actionButtons(for task: Task) -> some View {
         let isCompact = hourHeight < 60
-        return HStack(spacing: 6) {
-            Button {
+        return DayTimelineActionButtons(
+            isCompact: isCompact,
+            onComplete: {
                 vm.toggle(task)
                 withAnimation(.snappySpring) { menuTaskID = nil }
-            } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: isCompact ? 24 : 28))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .green)
-            }
-            Button {
+            },
+            onDelete: {
                 vm.delete(task)
                 withAnimation(.snappySpring) { menuTaskID = nil }
-            } label: {
-                Image(systemName: "trash.circle.fill")
-                    .font(.system(size: isCompact ? 24 : 28))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .red)
             }
-        }
-        .padding(isCompact ? 5 : 6)
-        .background(.ultraThinMaterial)
-        .cornerRadius(isCompact ? 14 : 16)
-        .offset(y: isCompact ? -30 : -36)
-        .padding(.trailing, 4)
+        )
     }
 
     // MARK: - Линия «сейчас»
@@ -289,7 +262,8 @@ struct DayTimelineContent: View {
             onToggle: { vm.toggle(task) },
             onPin: { vm.pin(task) },
             onDelete: { vm.delete(task) },
-            onEdit: { vm.addTaskVM.prepareEditTask(task) }
+            onEdit: { vm.addTaskVM.prepareEditTask(task) },
+            onSwipeChanged: { vm.isSwipingTask = $0 }
         )
     }
 
@@ -297,15 +271,6 @@ struct DayTimelineContent: View {
         let parts = time.split(separator: ":").compactMap { Int($0) }
         guard let h = parts[safe: 0], let m = parts[safe: 1] else { return nil }
         return (h, m)
-    }
-
-    private func timeRange(time: String, duration: Int) -> String {
-        let dur = duration > 0 ? duration : 30
-        guard let (h, m) = parseTime(time) else { return time }
-        let endTotal = h * 60 + m + dur
-        let endH = (endTotal / 60) % 24
-        let endM = endTotal % 60
-        return "\(time) – \(String(format: "%02d:%02d", endH, endM))"
     }
 
     private func scrollToRelevant(_ proxy: ScrollViewProxy) {

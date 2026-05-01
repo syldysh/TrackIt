@@ -17,4 +17,7 @@ struct Task: Identifiable, Equatable, Hashable {
     var dateScheduled: Date?
     var time: String?
     var duration: Int16
+    var reminderEnabled: Bool
+    var calendarSyncEnabled: Bool
+    var calendarEventIdentifier: String?
 }

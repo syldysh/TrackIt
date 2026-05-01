@@ -47,7 +47,10 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
             pinned: item.pinned,
             dateScheduled: item.dateScheduled,
             time: item.time,
-            duration: item.duration
+            duration: item.duration,
+            reminderEnabled: item.reminderEnabled,
+            calendarSyncEnabled: item.calendarSyncEnabled,
+            calendarEventIdentifier: item.calendarEventIdentifier
         )
     }
 
@@ -89,10 +92,6 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
         tasks.filter { $0.isCompleted }.count
     }
 
-    var totalScheduled: Int {
-        scheduledTasks.count
-    }
-
     // MARK: - Создание
 
     @discardableResult
@@ -103,12 +102,21 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
         item.isCompleted = false
         item.isInbox = true
         item.pinned = false
+        item.reminderEnabled = false
+        item.calendarSyncEnabled = false
         save()
         return map(item)
     }
 
     @discardableResult
-    func addScheduledTask(title: String, date: Date, time: String? = nil, duration: Int16 = 0) -> Task {
+    func addScheduledTask(
+        title: String,
+        date: Date,
+        time: String? = nil,
+        duration: Int16 = 0,
+        reminderEnabled: Bool = false,
+        calendarSyncEnabled: Bool = false
+    ) -> Task {
         let item = TaskItem(context: context)
         item.id = UUID()
         item.title = title
@@ -118,35 +126,62 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
         item.dateScheduled = date
         item.time = time
         item.duration = duration
+        item.reminderEnabled = reminderEnabled && !(time ?? "").isEmpty
+        item.calendarSyncEnabled = calendarSyncEnabled && !(time ?? "").isEmpty
         save()
         return map(item)
     }
 
     // MARK: - Обновление
 
-    func scheduleFromInbox(_ task: Task, date: Date, time: String? = nil, duration: Int16 = 0) {
-        guard let item = item(for: task) else { return }
+    @discardableResult
+    func scheduleFromInbox(
+        _ task: Task,
+        date: Date,
+        time: String? = nil,
+        duration: Int16 = 0,
+        reminderEnabled: Bool = false,
+        calendarSyncEnabled: Bool = false
+    ) -> Task? {
+        guard let item = item(for: task) else { return nil }
         item.isInbox = false
         item.dateScheduled = date
         item.time = time
         item.duration = duration
+        item.reminderEnabled = reminderEnabled && !(time ?? "").isEmpty
+        item.calendarSyncEnabled = calendarSyncEnabled && !(time ?? "").isEmpty
         save()
+        return map(item)
     }
 
-    func update(_ task: Task, title: String, date: Date, time: String?, duration: Int16) {
-        guard let item = item(for: task) else { return }
+    @discardableResult
+    func update(
+        _ task: Task,
+        title: String,
+        date: Date,
+        time: String?,
+        duration: Int16,
+        reminderEnabled: Bool = false,
+        calendarSyncEnabled: Bool = false
+    ) -> Task? {
+        guard let item = item(for: task) else { return nil }
         item.title = title
         item.dateScheduled = date
         item.time = time
         item.duration = duration
         item.isInbox = false
+        item.reminderEnabled = reminderEnabled && !(time ?? "").isEmpty
+        item.calendarSyncEnabled = calendarSyncEnabled && !(time ?? "").isEmpty
         save()
+        return map(item)
     }
 
-    func toggle(_ task: Task) {
-        guard let item = item(for: task) else { return }
+    @discardableResult
+    func toggle(_ task: Task) -> Task? {
+        guard let item = item(for: task) else { return nil }
         item.isCompleted.toggle()
         save()
+        return map(item)
     }
 
     func pin(_ task: Task) {
@@ -155,10 +190,25 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
         save()
     }
 
-    func setTime(_ time: String?, for task: Task) {
-        guard let item = item(for: task) else { return }
+    @discardableResult
+    func setTime(_ time: String?, for task: Task) -> Task? {
+        guard let item = item(for: task) else { return nil }
         item.time = time
+        if (time ?? "").isEmpty {
+            item.reminderEnabled = false
+            item.calendarSyncEnabled = false
+        }
         save()
+        return map(item)
+    }
+
+    @discardableResult
+    func updateCalendarEventIdentifier(_ identifier: String?, for taskID: UUID) -> Task? {
+        guard let item = taskItems.first(where: { $0.id == taskID }) else { return nil }
+        guard item.calendarEventIdentifier != identifier else { return map(item) }
+        item.calendarEventIdentifier = identifier
+        save()
+        return map(item)
     }
 
     // MARK: - Удаление

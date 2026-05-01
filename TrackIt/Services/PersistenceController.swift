@@ -10,21 +10,13 @@ import CoreData
 
 struct PersistenceController {
 
-    // MARK: - Singleton
-
-    // Единственный экземпляр контроллера на всё приложение
     static let shared = PersistenceController()
-
-    // MARK: - Контейнер
 
     let container: NSPersistentContainer
 
-    // Основной контекст для работы с UI-потоком
     var viewContext: NSManagedObjectContext {
         container.viewContext
     }
-
-    // MARK: - Инициализация
 
     init(inMemory: Bool = false) {
         container = NSPersistentContainer(name: "TrackIt")
@@ -35,19 +27,18 @@ struct PersistenceController {
                 URL(fileURLWithPath: "/dev/null")
         }
 
+        container.persistentStoreDescriptions.first?.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+        container.persistentStoreDescriptions.first?.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+
         container.loadPersistentStores { _, error in
             if let error = error as NSError? {
                 fatalError("CoreData: не удалось загрузить хранилище — \(error), \(error.userInfo)")
             }
         }
 
-        // Автоматически мержим изменения из фоновых контекстов
         container.viewContext.automaticallyMergesChangesFromParent = true
     }
 
-    // MARK: - Сохранение
-
-    // Сохраняет контекст, если есть несохранённые изменения
     func save() {
         let context = viewContext
         guard context.hasChanges else { return }
