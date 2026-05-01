@@ -10,48 +10,81 @@ import SwiftUI
 
 struct SchedulePickerView: View {
     let task: Task
-    let onSchedule: (Date, String?, Int16) -> Void
+    let onSchedule: (Date, String?, Int16, Bool, Bool) -> Void
     let onCancel: () -> Void
 
-    @State private var schedDate: Date? = RuDate.startOfDay(Date())
-    @State private var nativeDateSelection = Date()
-    @State private var showTimePicker = false
-    @State private var timeDate = Date()
-    @State private var selectedDuration: Int16 = 0
-    @State private var showDurationPicker = false
+    @StateObject private var formVM: SchedulePickerViewModel
+    @ObservedObject var dragState: ModalDragState
 
-    private var today: Date { RuDate.startOfDay(Date()) }
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.4).ignoresSafeArea()
-                .onTapGesture { onCancel() }
-
-            VStack(spacing: 0) {
-                Spacer()
-                sheetContent
-            }
-            .ignoresSafeArea(edges: .bottom)
-        }
-        .background(TabBarHider(hide: true))
+    init(
+        task: Task,
+        notificationService: any NotificationServiceProtocol,
+        calendarSyncService: any CalendarSyncServiceProtocol,
+        dragState: ModalDragState,
+        onSchedule: @escaping (Date, String?, Int16, Bool, Bool) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.task = task
+        self.onSchedule = onSchedule
+        self.onCancel = onCancel
+        self.dragState = dragState
+        _formVM = StateObject(
+            wrappedValue: SchedulePickerViewModel(
+                notificationService: notificationService,
+                calendarSyncService: calendarSyncService
+            )
+        )
     }
 
-    // MARK: - Sheet
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.clear
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { onCancel() }
+
+            sheetContent
+                .offset(y: dragState.offset)
+                .contentShape(Rectangle())
+                .onTapGesture { }
+        }
+        .ignoresSafeArea(edges: .bottom)
+        .background(TabBarHider(hide: true).allowsHitTesting(false))
+    }
 
     private var sheetContent: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(.systemGray4))
-                .frame(width: 40, height: 4)
-                .padding(.top, 12)
-                .padding(.bottom, 12)
+            ModalDragHandle(dragState: dragState, onDismiss: onCancel) {
+                EmptyView()
+            }
+            .padding(.bottom, 8)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     taskTitle
                     monthPicker
-                    TimePickerSection(isShowing: $showTimePicker, timeDate: $timeDate)
-                    DurationPickerSection(isShowing: $showDurationPicker, duration: $selectedDuration)
+                    TimePickerSection(isShowing: $formVM.showTimePicker, timeDate: $formVM.timeDate)
+                        .onChange(of: formVM.showTimePicker) { _, isShowing in
+                            if !isShowing {
+                                formVM.disableReminder()
+                                formVM.disableCalendarSync()
+                            }
+                        }
+                    if formVM.canShowReminderToggle {
+                        NotificationToggleSection(
+                            isOn: formVM.reminderEnabled,
+                            message: formVM.notificationPermissionMessage,
+                            onChange: { formVM.setReminderEnabled($0) }
+                        )
+                    }
+                    if formVM.canShowCalendarSyncToggle {
+                        CalendarSyncToggleSection(
+                            isOn: formVM.calendarSyncEnabled,
+                            message: formVM.calendarPermissionMessage,
+                            onChange: { formVM.setCalendarSyncEnabled($0) }
+                        )
+                    }
+                    DurationPickerSection(isShowing: $formVM.showDurationPicker, duration: $formVM.selectedDuration)
                     confirmButton
                     cancelButton
                 }
@@ -62,8 +95,6 @@ struct SchedulePickerView: View {
         .cornerRadius(20, corners: [.topLeft, .topRight])
     }
 
-    // MARK: - Title
-
     private var taskTitle: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Когда выполнить?")
@@ -72,46 +103,47 @@ struct SchedulePickerView: View {
             Text("\"\(task.title)\"")
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(Color(.label))
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
     }
 
-    // MARK: - Month Picker
-
     private var monthPicker: some View {
-        DatePicker("", selection: $nativeDateSelection, in: today..., displayedComponents: .date)
+        DatePicker("", selection: $formVM.nativeDateSelection, in: formVM.today..., displayedComponents: .date)
             .datePickerStyle(.graphical)
             .environment(\.locale, Locale(identifier: "ru_RU"))
             .padding(.horizontal, 12)
             .padding(.bottom, 16)
-            .onChange(of: nativeDateSelection) { _, val in
-                schedDate = RuDate.startOfDay(val)
+            .onChange(of: formVM.nativeDateSelection) { _, val in
+                formVM.updateDateSelection(val)
             }
     }
 
-    // MARK: - Buttons
-
     private var confirmButton: some View {
         Button {
-            if let date = schedDate {
-                let timeStr: String? = showTimePicker
-                    ? String(format: "%02d:%02d",
-                             RuDate.calendar.component(.hour, from: timeDate),
-                             RuDate.calendar.component(.minute, from: timeDate))
-                    : nil
-                onSchedule(date, timeStr, selectedDuration)
+            if let date = formVM.schedDate {
+                onSchedule(
+                    date,
+                    formVM.timeString,
+                    formVM.selectedDuration,
+                    formVM.shouldScheduleReminder,
+                    formVM.shouldSyncCalendar
+                )
             }
         } label: {
-            Text(schedDate.map { "Запланировать на \(RuDate.shortDayLabel($0))" } ?? "Выберите дату")
+            Text(formVM.schedDate.map { "Запланировать на \(RuDate.shortDayLabel($0))" } ?? "Выберите дату")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(Color.brandAccent.opacity(schedDate != nil ? 1 : 0.35))
+                .background(Color.brandAccent.opacity(formVM.schedDate != nil ? 1 : 0.35))
                 .cornerRadius(16)
         }
-        .disabled(schedDate == nil)
+        .disabled(formVM.schedDate == nil)
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
     }
@@ -121,6 +153,8 @@ struct SchedulePickerView: View {
             Text("Отмена — оставить в планировщике")
                 .font(.system(size: 15))
                 .foregroundColor(Color(.secondaryLabel))
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
         }

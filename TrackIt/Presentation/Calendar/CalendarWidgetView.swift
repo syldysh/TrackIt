@@ -12,6 +12,8 @@ struct CalendarWidgetView: View {
     @EnvironmentObject var vm: CalendarViewModel
     @Binding var isExpanded: Bool
 
+    @State private var expandDragOffset: CGFloat = 0
+
     var body: some View {
         VStack(spacing: 0) {
             if isExpanded {
@@ -24,6 +26,21 @@ struct CalendarWidgetView: View {
         .cardStyle()
         .padding(.horizontal, 16)
         .padding(.top, 8)
+        .offset(y: isExpanded ? max(expandDragOffset, 0) : 0)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20)
+                .onChanged { value in
+                    guard isExpanded, value.translation.height > 0 else { return }
+                    expandDragOffset = value.translation.height
+                }
+                .onEnded { value in
+                    guard isExpanded else { return }
+                    if value.translation.height > 80 {
+                        withAnimation(.smoothSpring) { isExpanded = false }
+                    }
+                    withAnimation(.sheetSpring) { expandDragOffset = 0 }
+                }
+        )
     }
 
     // MARK: - Expand Button

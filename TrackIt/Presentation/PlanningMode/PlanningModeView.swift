@@ -20,6 +20,7 @@ struct PlanningModeView: View {
     @State private var swipeHandled = false
     @State private var showScheduler = false
     @State private var pendingTask: Task? = nil
+    @StateObject private var scheduleDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
 
     enum SwipeAxis { case horizontal, vertical }
 
@@ -28,87 +29,77 @@ struct PlanningModeView: View {
     private func ensureQueue() { if queue == nil { queue = initialQueue } }
     private var remaining: Int { max(0, activeQueue.count - currentIndex) }
     private var isFinished: Bool { activeQueue.isEmpty || currentIndex >= activeQueue.count }
+    private var cardExitDistance: CGFloat { UIScreen.main.bounds.width + 160 }
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.7)
+            Color.clear
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
                 .onTapGesture {
                     guard !showScheduler else { return }
                     dismiss()
                 }
 
-            VStack(spacing: 0) {
-                header
-                counter
-                if isFinished {
-                    finishedState
-                } else {
-                    Spacer()
-                    cardSection
-                    Spacer()
-                    Text("Свайп: ← пропустить · → запланировать · ↓ удалить")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.4))
-                        .padding(.bottom, 16)
+            GeometryReader { proxy in
+                let isCompactHeight = proxy.size.height < 620
+
+                VStack(spacing: 0) {
+                    PlannerHeaderView(onDismiss: dismiss)
+
+                    if isFinished {
+                        PlanningFinishedStateView {
+                            if isFinished { dismiss() }
+                        }
+                    } else {
+                        PlanningProgressBadge(remaining: remaining)
+                            .padding(.bottom, isCompactHeight ? 12 : 20)
+
+                        Spacer(minLength: isCompactHeight ? 8 : 0)
+
+                        cardSection
+
+                        Spacer(minLength: isCompactHeight ? 8 : 0)
+
+                        hintText
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, isCompactHeight ? 16 : 28)
+                    }
                 }
+            }
+
+            if showScheduler {
+                ModalDimBackground(dragState: scheduleDragState, baseOpacity: 0.32, onTap: cancelSchedule)
+                    .transition(.opacity)
+                    .zIndex(19)
             }
 
             if showScheduler, let task = pendingTask {
                 SchedulePickerView(
                     task: task,
-                    onSchedule: { date, time, duration in scheduleTask(task, on: date, time: time, duration: duration) },
+                    notificationService: vm.notificationService,
+                    calendarSyncService: vm.calendarSyncService,
+                    dragState: scheduleDragState,
+                    onSchedule: { date, time, duration, reminderEnabled, calendarSyncEnabled in
+                        scheduleTask(
+                            task,
+                            on: date,
+                            time: time,
+                            duration: duration,
+                            reminderEnabled: reminderEnabled,
+                            calendarSyncEnabled: calendarSyncEnabled
+                        )
+                    },
                     onCancel: { cancelSchedule() }
                 )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(.move(edge: .bottom))
                 .zIndex(20)
             }
         }
-        .animation(.sheetSpring, value: showScheduler)
         .onAppear { if queue == nil { queue = initialQueue } }
     }
 
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(spacing: 8) {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.brandAccent)
-                    .frame(width: 32, height: 32)
-            }
-            Image(systemName: "bolt.fill")
-                .font(.system(size: 16))
-                .foregroundColor(.brandOrange)
-            Text("Режим планирования")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
-                .lineLimit(1)
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
-    }
-
-    private var counter: some View {
-        HStack {
-            Spacer()
-            Text("\(remaining) \(RuDate.pluralTasks(remaining)) осталось")
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.6))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.12))
-                .cornerRadius(16)
-            Spacer()
-        }
-        .padding(.top, 12)
-        .padding(.bottom, 8)
-    }
-
-    // MARK: - Card
+    // MARK: - Card Section
 
     @ViewBuilder
     private var cardSection: some View {
@@ -116,22 +107,30 @@ struct PlanningModeView: View {
             PlanningCardView(
                 task: task,
                 totalRemaining: remaining,
-                offset: offset
+                offset: offset,
+                onSkip: skipCurrentTask,
+                onDelete: deleteCurrentTask,
+                onSchedule: openScheduler
             )
+            .id(task.id)
+            .transition(cardTransition)
             .gesture(
                 DragGesture()
                     .onChanged { v in
+                        guard !swipeHandled else { return }
                         if lockedAxis == nil && (abs(v.translation.width) > 10 || abs(v.translation.height) > 10) {
                             lockedAxis = abs(v.translation.width) >= abs(v.translation.height) ? .horizontal : .vertical
                         }
+                        let nextOffset: CGSize
                         switch lockedAxis {
                         case .horizontal:
-                            offset = CGSize(width: v.translation.width, height: 0)
+                            nextOffset = CGSize(width: v.translation.width, height: 0)
                         case .vertical:
-                            offset = CGSize(width: 0, height: max(v.translation.height, 0))
+                            nextOffset = CGSize(width: 0, height: max(v.translation.height, 0))
                         case nil:
-                            break
+                            nextOffset = offset
                         }
+                        setDragOffset(nextOffset)
                     }
                     .onEnded { v in
                         handleSwipe(v, task: task)
@@ -141,26 +140,24 @@ struct PlanningModeView: View {
         }
     }
 
-    // MARK: - Finished
+    private var cardTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity
+                .combined(with: .scale(scale: 0.96))
+                .combined(with: .offset(x: 0, y: 18)),
+            removal: .opacity
+        )
+    }
 
-    private var finishedState: some View {
-        VStack {
-            Spacer()
-            VStack(spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 56))
-                    .foregroundColor(.brandGreen)
-                Text("Всё запланировано!")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                    if isFinished { dismiss() }
-                }
-            }
-            Spacer()
-        }
+    // MARK: - Hint Text
+
+    private var hintText: some View {
+        Text("Свайп: ← пропустить · → запланировать · ↓ удалить")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundColor(.white.opacity(0.45))
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.82)
     }
 
     // MARK: - Swipe Handling
@@ -171,43 +168,77 @@ struct PlanningModeView: View {
         let ty = offset.height
 
         if tx > 90 && lockedAxis == .horizontal {
-            swipeHandled = true
             withAnimation(.smoothSpring) { offset = .zero }
-            pendingTask = task
-            showScheduler = true
-            swipeHandled = false
+            openSchedulerFor(task)
         } else if tx < -90 && lockedAxis == .horizontal {
-            swipeHandled = true
-            withAnimation(.smoothSpring) { offset = CGSize(width: -500, height: 0) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                offset = .zero
+            animateCardOut(to: CGSize(width: -cardExitDistance, height: 0)) {
                 currentIndex += 1
-                swipeHandled = false
             }
         } else if ty > 100 && lockedAxis == .vertical {
-            swipeHandled = true
-            withAnimation(.smoothSpring) { offset = CGSize(width: 0, height: 500) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                offset = .zero
+            animateCardOut(to: CGSize(width: 0, height: cardExitDistance)) {
                 ensureQueue()
                 vm.delete(task)
                 removeCurrentTaskFromQueue()
-                swipeHandled = false
             }
         } else {
             withAnimation(.smoothSpring) { offset = .zero }
         }
     }
 
-    private func scheduleTask(_ task: Task, on date: Date, time: String? = nil, duration: Int16 = 0) {
-        vm.scheduleFromInbox(task, date: date, time: time, duration: duration)
-        removeCurrentTaskFromQueue()
-        showScheduler = false
+    // MARK: - Button Handlers
+
+    private func skipCurrentTask() {
+        guard !swipeHandled, currentTask != nil else { return }
+        animateCardOut(to: CGSize(width: -cardExitDistance, height: 0)) {
+            currentIndex += 1
+        }
+    }
+
+    private func deleteCurrentTask() {
+        guard !swipeHandled, let task = currentTask else { return }
+        animateCardOut(to: CGSize(width: 0, height: cardExitDistance)) {
+            ensureQueue()
+            vm.delete(task)
+            removeCurrentTaskFromQueue()
+        }
+    }
+
+    private func openScheduler() {
+        guard let task = currentTask else { return }
+        openSchedulerFor(task)
+    }
+
+    private func openSchedulerFor(_ task: Task) {
+        pendingTask = task
+        scheduleDragState.reset()
+        withAnimation(.sheetSpring) { showScheduler = true }
+    }
+
+    // MARK: - Schedule Callbacks
+
+    private func scheduleTask(
+        _ task: Task,
+        on date: Date,
+        time: String? = nil,
+        duration: Int16 = 0,
+        reminderEnabled: Bool = false,
+        calendarSyncEnabled: Bool = false
+    ) {
+        vm.scheduleFromInbox(
+            task,
+            date: date,
+            time: time,
+            duration: duration,
+            reminderEnabled: reminderEnabled,
+            calendarSyncEnabled: calendarSyncEnabled
+        )
+        withAnimation(.smoothSpring) { removeCurrentTaskFromQueue() }
+        withAnimation(.sheetSpring) { showScheduler = false }
         pendingTask = nil
     }
 
     private func cancelSchedule() {
-        showScheduler = false
+        withAnimation(.sheetSpring) { showScheduler = false }
         pendingTask = nil
     }
 
@@ -223,5 +254,32 @@ struct PlanningModeView: View {
             currentIndex = queue.count - 1
         }
         self.queue = queue
+    }
+
+    private func setDragOffset(_ newOffset: CGSize) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            offset = newOffset
+        }
+    }
+
+    private func resetOffsetWithoutAnimation() {
+        setDragOffset(.zero)
+    }
+
+    private func animateCardOut(to targetOffset: CGSize, afterFlight updateQueue: @escaping () -> Void) {
+        guard !swipeHandled else { return }
+        swipeHandled = true
+        withAnimation(.easeOut(duration: 0.22)) {
+            offset = targetOffset
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            resetOffsetWithoutAnimation()
+            withAnimation(.smoothSpring) {
+                updateQueue()
+            }
+            swipeHandled = false
+        }
     }
 }

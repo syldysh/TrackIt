@@ -11,6 +11,8 @@ import SwiftUI
 struct WeekDayModal: View {
     @EnvironmentObject var vm: CalendarViewModel
     let date: Date
+    @ObservedObject var dragState: ModalDragState
+    var onDismiss: () -> Void = {}
 
     @State private var showCompleted = false
 
@@ -20,7 +22,7 @@ struct WeekDayModal: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            dragArea
             Divider()
 
             DayTimelineContent(
@@ -36,6 +38,15 @@ struct WeekDayModal: View {
         .background(Color(.systemBackground))
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.15), radius: 20, y: 8)
+        .offset(y: dragState.offset)
+    }
+
+    // MARK: - Drag Area
+
+    private var dragArea: some View {
+        ModalDragHandle(dragState: dragState, onDismiss: onDismiss) {
+            header
+        }
     }
 
     // MARK: - Хедер
@@ -51,6 +62,6 @@ struct WeekDayModal: View {
                 .foregroundColor(Color(.secondaryLabel))
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 10)
     }
 }

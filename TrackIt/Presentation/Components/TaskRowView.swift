@@ -14,6 +14,7 @@ struct TaskRowView: View {
     let onPin: () -> Void
     let onDelete: () -> Void
     let onEdit: () -> Void
+    var onSwipeChanged: ((Bool) -> Void)? = nil
 
     @State private var offset: CGFloat = 0
     private var isSwiping: Bool { offset != 0 }
@@ -101,9 +102,11 @@ struct TaskRowView: View {
             task.isCompleted ? nil :
             DragGesture()
                 .onChanged { v in
+                    onSwipeChanged?(true)
                     withAnimation(.dragFollow) { offset = v.translation.width }
                 }
                 .onEnded { v in
+                    onSwipeChanged?(false)
                     if v.translation.width < -80 {
                         withAnimation(.smoothSpring) { onDelete() }
                     } else if v.translation.width > 80 {
@@ -117,7 +120,7 @@ struct TaskRowView: View {
     }
 
     private var checkboxButton: some View {
-        Button { onToggle() } label: {
+        Button { withAnimation(.smoothSpring) { onToggle() } } label: {
             ZStack {
                 Circle()
                     .strokeBorder(

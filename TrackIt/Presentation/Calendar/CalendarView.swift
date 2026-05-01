@@ -39,6 +39,8 @@ struct CalendarView: View {
     @State private var isExpanded = false
     @State private var showCompleted = false
     @State private var weekModalDate: Date? = nil
+    @StateObject private var weekModalDragState = ModalDragState()
+    @StateObject private var addTaskDragState = ModalDragState()
     @FocusState private var addFocused: Bool
 
     var body: some View {
@@ -46,7 +48,8 @@ struct CalendarView: View {
             Color(.secondarySystemBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                header
+                CalendarHeaderView(showViewMenu: $showViewMenu)
+                    .environmentObject(vm)
                 switch vm.viewMode {
                 case .list: listView
                 case .week: WeekGridView(weekModalDate: $weekModalDate).environmentObject(vm)
@@ -68,16 +71,13 @@ struct CalendarView: View {
 
             // Модальное окно дня в режиме «Неделя»
             if let date = weekModalDate {
-                Color.black.opacity(0.3)
-                    .background(.ultraThinMaterial)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.sheetSpring) { weekModalDate = nil }
-                    }
+                ModalDimBackground(dragState: weekModalDragState, baseOpacity: 0.3) {
+                    dismissWeekModal()
+                }
                     .transition(.opacity)
                     .zIndex(10)
 
-                WeekDayModal(date: date)
+                WeekDayModal(date: date, dragState: weekModalDragState, onDismiss: dismissWeekModal)
                     .environmentObject(vm)
                     .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
                     .padding(.horizontal, 24)
@@ -85,96 +85,39 @@ struct CalendarView: View {
                     .zIndex(11)
             }
 
-            if showViewMenu { viewMenuOverlay }
-            fabButton
+            if showViewMenu {
+                CalendarViewMenuOverlay(isPresented: $showViewMenu, weekModalDate: $weekModalDate)
+                    .environmentObject(vm)
+            }
+            CalendarFloatingAddButton(action: openAddTask)
 
             if vm.addTaskVM.showAddTask {
-                Color.black.opacity(0.3)
-                    .background(.ultraThinMaterial)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.sheetSpring) { vm.addTaskVM.reset() }
-                        addFocused = false
-                    }
+                ModalDimBackground(dragState: addTaskDragState, baseOpacity: 0.3) {
+                    dismissAddTask()
+                }
                     .transition(.opacity)
                     .zIndex(19)
             }
 
             if vm.addTaskVM.showAddTask {
-                AddTaskOverlay(formVM: vm.addTaskVM, addFocused: $addFocused)
+                AddTaskOverlay(
+                    formVM: vm.addTaskVM,
+                    addFocused: $addFocused,
+                    dragState: addTaskDragState,
+                    onDismiss: dismissAddTask
+                )
                     .environmentObject(vm)
                     .transition(.move(edge: .bottom))
                     .zIndex(20)
             }
         }
         .background(TabBarHider(hide: vm.addTaskVM.showAddTask))
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        Button { withAnimation(.smoothSpring) { showViewMenu.toggle() } } label: {
-            HStack(spacing: 6) {
-                Text(vm.headerMonthYear)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color(.label))
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(.secondaryLabel))
-                    .rotationEffect(.degrees(showViewMenu ? 180 : 0))
-            }
+        .onChange(of: weekModalDate != nil) { _, isPresented in
+            if isPresented { weekModalDragState.reset() }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(Color(.systemBackground))
-    }
-
-    // MARK: - View Menu Overlay
-
-    private var viewMenuOverlay: some View {
-        ZStack(alignment: .top) {
-            Color.clear.ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture { withAnimation(.smoothSpring) { showViewMenu = false } }
-
-            VStack(spacing: 0) {
-                ForEach(CalViewMode.allCases, id: \.self) { mode in
-                    Button {
-                        withAnimation(.smoothSpring) {
-                            if mode == .week { vm.syncMonthToSelected() }
-                            vm.viewMode = mode
-                            weekModalDate = nil
-                            showViewMenu = false
-                        }
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: mode.icon)
-                                .font(.system(size: 16))
-                                .foregroundColor(vm.viewMode == mode ? .brandAccent : Color(.secondaryLabel))
-                                .frame(width: 22)
-                            Text(mode.label)
-                                .font(.system(size: 16))
-                                .foregroundColor(vm.viewMode == mode ? .brandAccent : Color(.label))
-                            Spacer()
-                            if vm.viewMode == mode {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.brandAccent)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                    }
-                    if mode != .day { Divider().padding(.leading, 50) }
-                }
-            }
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.16), radius: 20, y: 8)
-            .frame(width: 220)
-            .padding(.top, 48)
+        .onChange(of: vm.addTaskVM.showAddTask) { _, isPresented in
+            if isPresented { addTaskDragState.reset() }
         }
-        .zIndex(50)
     }
 
     // MARK: - List View
@@ -182,28 +125,9 @@ struct CalendarView: View {
     private var listView: some View {
         VStack(spacing: 0) {
             CalendarWidgetView(isExpanded: $isExpanded).environmentObject(vm)
-            dayLabel
+            CalendarDayLabelView(selectedDate: vm.selectedDate, todayString: vm.todayStr)
             dayTaskList
         }
-    }
-
-    private var dayLabel: some View {
-        HStack(spacing: 8) {
-            Text(RuDate.dateDayLabel(vm.selectedDate))
-                .font(.system(size: 17, weight: .semibold))
-            if RuDate.isoString(from: vm.selectedDate) == vm.todayStr {
-                Text("сегодня")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.brandAccent)
-                    .cornerRadius(10)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
     }
 
     private var dayTaskList: some View {
@@ -212,7 +136,7 @@ struct CalendarView: View {
 
         return ScrollView {
             if active.isEmpty && completed.isEmpty {
-                emptyDayPlaceholder
+                CalendarEmptyDayPlaceholder()
             } else {
                 VStack(spacing: 0) {
                     ForEach(active) { task in
@@ -236,29 +160,9 @@ struct CalendarView: View {
             onToggle: { vm.toggle(task) },
             onPin: { vm.pin(task) },
             onDelete: { vm.delete(task) },
-            onEdit: { vm.addTaskVM.prepareEditTask(task) }
+            onEdit: { vm.addTaskVM.prepareEditTask(task) },
+            onSwipeChanged: { vm.isSwipingTask = $0 }
         )
-    }
-
-    private var emptyDayPlaceholder: some View {
-        VStack(spacing: 12) {
-            Spacer().frame(height: 40)
-            Circle()
-                .fill(Color(.systemGray6))
-                .frame(width: 64, height: 64)
-                .overlay(
-                    Image(systemName: "calendar")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color(.systemGray3))
-                )
-            Text("Нет задач на этот день")
-                .font(.system(size: 17))
-                .foregroundColor(Color(.secondaryLabel))
-            Text("Выберите день в календаре")
-                .font(.system(size: 13))
-                .foregroundColor(Color(.tertiaryLabel))
-        }
-        .frame(maxWidth: .infinity)
     }
 
     private func completedSection(_ tasks: [Task]) -> some View {
@@ -287,30 +191,20 @@ struct CalendarView: View {
         }
     }
 
-    // MARK: - FAB
-
-    private var fabButton: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                Button {
-                    withAnimation(.sheetSpring) {
-                        vm.addTaskVM.prepareAddTask(selectedDate: vm.selectedDate)
-                    }
-                    addFocused = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 56, height: 56)
-                        .background(Color.brandAccent)
-                        .clipShape(Circle())
-                        .shadow(color: .blue.opacity(0.35), radius: 12, y: 6)
-                }
-                .padding(.trailing, 20)
-                .padding(.bottom, 24)
-            }
+    private func openAddTask() {
+        addTaskDragState.reset()
+        withAnimation(.sheetSpring) {
+            vm.addTaskVM.prepareAddTask(selectedDate: vm.selectedDate)
         }
+        addFocused = true
+    }
+
+    private func dismissWeekModal() {
+        withAnimation(.sheetSpring) { weekModalDate = nil }
+    }
+
+    private func dismissAddTask() {
+        withAnimation(.sheetSpring) { vm.addTaskVM.reset() }
+        addFocused = false
     }
 }
