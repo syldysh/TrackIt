@@ -15,22 +15,20 @@ protocol TaskRepositoryProtocol: AnyObject {
     var inboxTasks: [Task] { get }
     var scheduledTasks: [Task] { get }
     var completedCount: Int { get }
-    var totalScheduled: Int { get }
 
-    // Публикатор «состояние задач изменилось» — для подписки ViewModel-ов.
-    // Отдельный publisher, а не ObservableObject, чтобы у протокола не было
-    // associatedtype и его можно было использовать как `any TaskRepositoryProtocol`.
+    // Keeps the protocol usable as `any TaskRepositoryProtocol` without ObservableObject associated types.
     var changePublisher: AnyPublisher<Void, Never> { get }
 
     func tasks(for date: Date) -> [Task]
 
     @discardableResult func addInboxTask(title: String) -> Task
-    @discardableResult func addScheduledTask(title: String, date: Date, time: String?, duration: Int16) -> Task
+    @discardableResult func addScheduledTask(title: String, date: Date, time: String?, duration: Int16, reminderEnabled: Bool, calendarSyncEnabled: Bool) -> Task
 
-    func toggle(_ task: Task)
+    @discardableResult func toggle(_ task: Task) -> Task?
     func pin(_ task: Task)
     func delete(_ task: Task)
-    func setTime(_ time: String?, for task: Task)
-    func scheduleFromInbox(_ task: Task, date: Date, time: String?, duration: Int16)
-    func update(_ task: Task, title: String, date: Date, time: String?, duration: Int16)
+    @discardableResult func setTime(_ time: String?, for task: Task) -> Task?
+    @discardableResult func scheduleFromInbox(_ task: Task, date: Date, time: String?, duration: Int16, reminderEnabled: Bool, calendarSyncEnabled: Bool) -> Task?
+    @discardableResult func update(_ task: Task, title: String, date: Date, time: String?, duration: Int16, reminderEnabled: Bool, calendarSyncEnabled: Bool) -> Task?
+    @discardableResult func updateCalendarEventIdentifier(_ identifier: String?, for taskID: UUID) -> Task?
 }

@@ -14,6 +14,8 @@ final class CalendarViewModel: ObservableObject {
     // MARK: - Зависимости
 
     private let repository: any TaskRepositoryProtocol
+    private let notificationService: any NotificationServiceProtocol
+    private let calendarSyncService: any CalendarSyncServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // Форм-стейт добавления/редактирования задачи
@@ -37,26 +39,27 @@ final class CalendarViewModel: ObservableObject {
     var weekDays: [Date] { (0..<7).map { RuDate.addDays(weekStart, $0) } }
 
     var headerMonthYear: String {
-        let cal = RuDate.calendar
         switch viewMode {
         case .list:
-            return "\(RuDate.monthNameNominative(at: viewMonth)) \(viewYear)"
+            return RuDate.monthYearTitle(year: viewYear, month: viewMonth)
         case .week:
             let d = weekDays.first ?? selectedDate
-            let m = cal.component(.month, from: d) - 1
-            let y = cal.component(.year, from: d)
-            return "\(RuDate.monthNameNominative(at: m)) \(y)"
+            return RuDate.monthYearTitle(for: d)
         case .day:
-            let m = cal.component(.month, from: selectedDate) - 1
-            let y = cal.component(.year, from: selectedDate)
-            return "\(RuDate.monthNameNominative(at: m)) \(y)"
+            return RuDate.monthYearTitle(for: selectedDate)
         }
     }
 
     // MARK: - Init
 
-    init(repository: any TaskRepositoryProtocol) {
+    init(
+        repository: any TaskRepositoryProtocol,
+        notificationService: any NotificationServiceProtocol,
+        calendarSyncService: any CalendarSyncServiceProtocol
+    ) {
         self.repository = repository
+        self.notificationService = notificationService
+        self.calendarSyncService = calendarSyncService
 
         let today = RuDate.startOfDay(Date())
         self.selectedDate = today
@@ -64,7 +67,11 @@ final class CalendarViewModel: ObservableObject {
         self.viewYear = RuDate.calendar.component(.year, from: today)
         self.viewMonth = RuDate.calendar.component(.month, from: today) - 1
 
-        let addVM = AddTaskViewModel(repository: repository)
+        let addVM = AddTaskViewModel(
+            repository: repository,
+            notificationService: notificationService,
+            calendarSyncService: calendarSyncService
+        )
         self.addTaskVM = addVM
 
         // Форвардим изменения из репозитория и формы — чтобы View перерисовывалась.
@@ -97,10 +104,31 @@ final class CalendarViewModel: ObservableObject {
 
     // MARK: - Действия с задачами
 
-    func toggle(_ task: Task) { repository.toggle(task) }
+    func toggle(_ task: Task) {
+        guard let updated = repository.toggle(task) else { return }
+        syncSideEffects(for: updated)
+    }
+
     func pin(_ task: Task) { repository.pin(task) }
-    func delete(_ task: Task) { repository.delete(task) }
-    func setTime(_ time: String, for task: Task) { repository.setTime(time, for: task) }
+
+    func delete(_ task: Task) {
+        calendarSyncService.deleteEvent(for: task)
+        notificationService.cancelNotification(for: task.id)
+        repository.delete(task)
+    }
+
+    func setTime(_ time: String, for task: Task) {
+        guard let updated = repository.setTime(time, for: task) else { return }
+        syncSideEffects(for: updated)
+    }
+
+    private func syncSideEffects(for task: Task) {
+        notificationService.syncNotification(for: task)
+        calendarSyncService.syncEvent(for: task) { [weak self] eventIdentifier in
+            guard task.calendarEventIdentifier != eventIdentifier else { return }
+            _ = self?.repository.updateCalendarEventIdentifier(eventIdentifier, for: task.id)
+        }
+    }
 
     // MARK: - Навигация по датам
 
@@ -149,7 +177,10 @@ final class CalendarViewModel: ObservableObject {
     }
 
     private func syncSelectedToMonth() {
-        if let d = RuDate.calendar.date(from: DateComponents(year: viewYear, month: viewMonth + 1, day: 1)) {
+        let currentDay = RuDate.calendar.component(.day, from: selectedDate)
+        let daysInNewMonth = RuDate.daysInMonth(year: viewYear, month: viewMonth)
+        let targetDay = min(currentDay, daysInNewMonth)
+        if let d = RuDate.calendar.date(from: DateComponents(year: viewYear, month: viewMonth + 1, day: targetDay)) {
             selectedDate = RuDate.startOfDay(d)
             weekStart = RuDate.weekStart(for: d)
         }
