@@ -81,10 +81,9 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
     }
 
     func tasks(for date: Date) -> [Task] {
-        let calendar = Calendar.current
         return scheduledTasks.filter { task in
             guard let scheduled = task.dateScheduled else { return false }
-            return calendar.isDate(scheduled, inSameDayAs: date)
+            return RuDate.calendar.isDate(scheduled, inSameDayAs: date)
         }
     }
 

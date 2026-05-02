@@ -136,7 +136,7 @@ struct AddTaskOverlay: View {
             if formVM.addDateMode == 2 {
                 DatePicker("", selection: $formVM.newDate, in: RuDate.startOfDay(Date())..., displayedComponents: .date)
                     .datePickerStyle(.graphical)
-                    .environment(\.locale, Locale(identifier: "ru_RU"))
+                    .environment(\.locale, RuDate.locale)
                     .padding(.horizontal, 12)
                     .background(Color(.systemGray6))
                     .cornerRadius(16)
