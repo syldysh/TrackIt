@@ -1,3 +1,11 @@
+//
+//  StreakModalView.swift
+//  TrackIt
+//
+//  Модальное окно со стриком активности.
+//  Показывает серию дней и короткий поддерживающий текст для пользователя.
+//
+
 import SwiftUI
 
 struct StreakModalView: View {

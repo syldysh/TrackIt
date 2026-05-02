@@ -1,3 +1,11 @@
+//
+//  SettingsDetailModalView.swift
+//  TrackIt
+//
+//  Модальное окно для пунктов настроек и поддержки.
+//  Показывает нужный текст по выбранному разделу и закрывается через общий drag.
+//
+
 import SwiftUI
 
 struct SettingsDetailModalView: View {

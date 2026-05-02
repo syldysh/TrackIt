@@ -1,3 +1,11 @@
+//
+//  PlanningProgressBadge.swift
+//  TrackIt
+//
+//  Маленький бейдж с количеством задач, которые ещё осталось разобрать.
+//  Используется в верхней части режима планирования.
+//
+
 import SwiftUI
 
 struct PlanningProgressBadge: View {

@@ -1,3 +1,11 @@
+//
+//  DayTimelineTaskBlockView.swift
+//  TrackIt
+//
+//  Карточка задачи внутри дневного таймлайна.
+//  Отвечает только за внешний вид блока и кнопок быстрых действий.
+//
+
 import SwiftUI
 
 struct DayTimelineTaskBlockView: View {

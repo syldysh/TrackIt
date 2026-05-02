@@ -1,3 +1,11 @@
+//
+//  CalendarViewMenuOverlay.swift
+//  TrackIt
+//
+//  Выпадающее меню выбора режима календаря.
+//  Через него пользователь переключается между месяцем, неделей и днем.
+//
+
 import SwiftUI
 
 struct CalendarViewMenuOverlay: View {

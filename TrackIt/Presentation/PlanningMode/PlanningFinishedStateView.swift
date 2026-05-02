@@ -1,3 +1,11 @@
+//
+//  PlanningFinishedStateView.swift
+//  TrackIt
+//
+//  Финальный экран режима планирования.
+//  Показывается, когда задачи закончились, и сам закрывает режим через небольшой таймер.
+//
+
 import SwiftUI
 
 struct PlanningFinishedStateView: View {

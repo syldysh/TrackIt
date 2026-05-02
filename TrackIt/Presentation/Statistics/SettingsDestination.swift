@@ -1,3 +1,11 @@
+//
+//  SettingsDestination.swift
+//  TrackIt
+//
+//  Описание разделов настроек.
+//  Хранит название и иконку, чтобы строки меню и модалки брали данные из одного места.
+//
+
 import SwiftUI
 
 enum SettingsDestination: Identifiable {

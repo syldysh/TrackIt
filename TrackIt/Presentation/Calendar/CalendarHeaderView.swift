@@ -1,3 +1,11 @@
+//
+//  CalendarHeaderView.swift
+//  TrackIt
+//
+//  Верхняя панель календаря с месяцем и стрелками навигации.
+//  Также открывает меню выбора режима просмотра.
+//
+
 import SwiftUI
 
 struct CalendarHeaderView: View {

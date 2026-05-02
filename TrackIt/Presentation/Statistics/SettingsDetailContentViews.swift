@@ -1,3 +1,11 @@
+//
+//  SettingsDetailContentViews.swift
+//  TrackIt
+//
+//  Тексты и небольшие блоки для экранов настроек.
+//  Здесь нет навигации, только содержимое модальных окон.
+//
+
 import SwiftUI
 
 struct NotificationSettingsContent: View {
