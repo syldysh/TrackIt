@@ -1,3 +1,11 @@
+//
+//  CalendarDayLabelView.swift
+//  TrackIt
+//
+//  Подпись выбранного дня в дневном режиме календаря.
+//  Показывает дату и небольшой бейдж, если это сегодня.
+//
+
 import SwiftUI
 
 struct CalendarDayLabelView: View {

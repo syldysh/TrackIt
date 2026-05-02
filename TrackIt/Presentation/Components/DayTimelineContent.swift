@@ -3,8 +3,8 @@
 //  TrackIt
 //
 //  Общий компонент для DayTimelineView и WeekDayModal.
-//  Убирает ~200 строк дублирования между двумя файлами.
 //  Параметры hourHeight и labelWidth контролируют плотность отображения.
+//
 //
 
 import SwiftUI
@@ -39,6 +39,10 @@ struct DayTimelineContent: View {
         dayTasks.filter { !$0.isCompleted && !($0.time ?? "").isEmpty }
     }
 
+    private var completedTasks: [Task] {
+        dayTasks.filter { $0.isCompleted }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -59,55 +63,24 @@ struct DayTimelineContent: View {
 
     // MARK: - Без времени
 
-    @ViewBuilder
     private var untimedSection: some View {
-        if !untimedTasks.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("БЕЗ ВРЕМЕНИ")
-                    .sectionHeaderStyle()
-                ForEach(untimedTasks) { task in
-                    taskRow(task)
-                }
-            }
-            .padding(.horizontal, horizontalPadding)
-            .padding(.top, 12)
-            .padding(.bottom, 4)
-            .id("\(idPrefix)_untimed")
+        DayTimelineUntimedSection(
+            tasks: untimedTasks,
+            horizontalPadding: horizontalPadding,
+            sectionID: "\(idPrefix)_untimed"
+        ) { task in
+            taskRow(task)
         }
     }
 
     // MARK: - Сетка 0–23
 
     private var hourGrid: some View {
-        VStack(spacing: 0) {
-            ForEach(0..<24, id: \.self) { h in
-                HStack(alignment: .top, spacing: 0) {
-                    Text(String(format: "%02d:00", h))
-                        .font(.system(size: hourHeight >= 60 ? 11 : 10, weight: .medium))
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(width: hourHeight >= 60 ? 36 : 32, alignment: .trailing)
-                        .padding(.trailing, hourHeight >= 60 ? 8 : 6)
-                    VStack(spacing: 0) {
-                        Rectangle()
-                            .fill(Color(.separator).opacity(0.3))
-                            .frame(height: 0.5)
-                        Spacer(minLength: 0)
-                    }
-                }
-                .frame(height: hourHeight)
-                .id("\(idPrefix)_hour_\(h)")
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if menuTaskID != nil {
-                        withAnimation(.snappySpring) { menuTaskID = nil }
-                    } else {
-                        withAnimation(.sheetSpring) {
-                            vm.addTaskVM.prepareAddTaskAt(hour: h, minute: 0, date: date)
-                        }
-                    }
-                }
-            }
-        }
+        DayTimelineHourGridView(
+            hourHeight: hourHeight,
+            idPrefix: idPrefix,
+            onHourTap: handleHourTap
+        )
     }
 
     // MARK: - Блоки задач
@@ -115,39 +88,7 @@ struct DayTimelineContent: View {
     private var taskBlocks: some View {
         ForEach(timedTasks) { task in
             if let time = task.time, let (h, m) = parseTime(time) {
-                let top = CGFloat(h) * hourHeight + CGFloat(m) / 60.0 * hourHeight
-                let dur = task.duration > 0 ? Int(task.duration) : 30
-                let minBlockH: CGFloat = hourHeight >= 60 ? 28 : 22
-                let blockH = max(CGFloat(dur) / 60.0 * hourHeight, minBlockH)
-                let isDragging = draggingTaskID == task.id
-
-                ZStack(alignment: .topTrailing) {
-                    DayTimelineTaskBlockView(
-                        task: task,
-                        time: time,
-                        duration: Int(task.duration),
-                        height: blockH,
-                        isCompact: hourHeight < 60
-                    )
-                    if menuTaskID == task.id {
-                        actionButtons(for: task)
-                            .transition(.scale.combined(with: .opacity))
-                    }
-                }
-                .padding(.leading, labelWidth)
-                .padding(.trailing, 4)
-                .offset(y: top + (isDragging ? dragYOffset : 0))
-                .scaleEffect(isDragging ? 1.04 : 1.0)
-                .shadow(color: isDragging ? .black.opacity(0.2) : .clear, radius: 8, y: 4)
-                .zIndex(isDragging ? 10 : (menuTaskID == task.id ? 5 : 0))
-                .animation(.dragFollow, value: isDragging)
-                .onTapGesture {
-                    if menuTaskID != nil {
-                        withAnimation(.snappySpring) { menuTaskID = nil }
-                    } else {
-                        withAnimation(.sheetSpring) { vm.addTaskVM.prepareEditTask(task) }
-                    }
-                }
+                taskBlock(task, time: time, hour: h, minute: m)
                 .gesture(moveGesture(task: task, origH: h, origM: m))
             }
         }
@@ -209,48 +150,24 @@ struct DayTimelineContent: View {
 
     @ViewBuilder
     private var nowLine: some View {
-        if RuDate.isoString(from: date) == vm.todayStr {
-            let now = Date()
-            let h = RuDate.calendar.component(.hour, from: now)
-            let m = RuDate.calendar.component(.minute, from: now)
-            let top = CGFloat(h) * hourHeight + CGFloat(m) / 60.0 * hourHeight
-            let isCompact = hourHeight < 60
-
-            HStack(spacing: 0) {
-                Circle().fill(Color.red).frame(width: isCompact ? 6 : 8, height: isCompact ? 6 : 8)
-                Rectangle().fill(Color.red).frame(height: isCompact ? 1 : 1.5)
-            }
-            .padding(.leading, labelWidth - (isCompact ? 3 : 4))
-            .offset(y: top)
-        }
+        DayTimelineNowLineView(
+            date: date,
+            todayString: vm.todayStr,
+            hourHeight: hourHeight,
+            labelWidth: labelWidth
+        )
     }
 
     // MARK: - Выполненные
 
-    @ViewBuilder
     private var completedSection: some View {
-        let completed = dayTasks.filter { $0.isCompleted }
-        let isCompact = hourHeight < 60
-        if !completed.isEmpty {
-            Button { withAnimation(.smoothSpring) { showCompleted.toggle() } } label: {
-                HStack {
-                    Text("Выполнено — \(completed.count)")
-                        .font(.system(size: isCompact ? 13 : 14, weight: .medium))
-                        .foregroundColor(Color(.secondaryLabel))
-                    Spacer()
-                    Image(systemName: showCompleted ? "chevron.up" : "chevron.down")
-                        .font(.system(size: isCompact ? 12 : 13))
-                        .foregroundColor(Color(.tertiaryLabel))
-                }
-                .padding(.horizontal, isCompact ? 16 : 20)
-                .padding(.vertical, isCompact ? 8 : 10)
-            }
-            if showCompleted {
-                VStack(spacing: 0) {
-                    ForEach(completed) { task in taskRow(task) }
-                }
-                .padding(.horizontal, horizontalPadding)
-            }
+        DayTimelineCompletedSection(
+            tasks: completedTasks,
+            showCompleted: $showCompleted,
+            hourHeight: hourHeight,
+            horizontalPadding: horizontalPadding
+        ) { task in
+            taskRow(task)
         }
     }
 
@@ -265,6 +182,55 @@ struct DayTimelineContent: View {
             onEdit: { vm.addTaskVM.prepareEditTask(task) },
             onSwipeChanged: { vm.isSwipingTask = $0 }
         )
+    }
+
+    private func taskBlock(_ task: Task, time: String, hour: Int, minute: Int) -> some View {
+        let isDragging = draggingTaskID == task.id
+        return DayTimelinePositionedTaskBlock(
+            task: task,
+            time: time,
+            duration: Int(task.duration),
+            blockHeight: blockHeight(for: task),
+            topOffset: topOffset(hour: hour, minute: minute),
+            isCompact: hourHeight < 60,
+            isDragging: isDragging,
+            dragYOffset: dragYOffset,
+            labelWidth: labelWidth,
+            showsActions: menuTaskID == task.id
+        ) {
+            actionButtons(for: task)
+        }
+        .onTapGesture {
+            handleTaskTap(task)
+        }
+    }
+
+    private func handleHourTap(_ hour: Int) {
+        if menuTaskID != nil {
+            withAnimation(.snappySpring) { menuTaskID = nil }
+        } else {
+            withAnimation(.sheetSpring) {
+                vm.addTaskVM.prepareAddTaskAt(hour: hour, minute: 0, date: date)
+            }
+        }
+    }
+
+    private func handleTaskTap(_ task: Task) {
+        if menuTaskID != nil {
+            withAnimation(.snappySpring) { menuTaskID = nil }
+        } else {
+            withAnimation(.sheetSpring) { vm.addTaskVM.prepareEditTask(task) }
+        }
+    }
+
+    private func topOffset(hour: Int, minute: Int) -> CGFloat {
+        CGFloat(hour) * hourHeight + CGFloat(minute) / 60.0 * hourHeight
+    }
+
+    private func blockHeight(for task: Task) -> CGFloat {
+        let duration = task.duration > 0 ? Int(task.duration) : 30
+        let minBlockHeight: CGFloat = hourHeight >= 60 ? 28 : 22
+        return max(CGFloat(duration) / 60.0 * hourHeight, minBlockHeight)
     }
 
     private func parseTime(_ time: String) -> (Int, Int)? {

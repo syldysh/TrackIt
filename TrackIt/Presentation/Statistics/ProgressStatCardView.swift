@@ -1,3 +1,11 @@
+//
+//  ProgressStatCardView.swift
+//  TrackIt
+//
+//  Нажимаемая карточка статистики на экране прогресса.
+//  Используется для выполненных задач и стрика.
+//
+
 import SwiftUI
 
 struct ProgressStatCardView: View {

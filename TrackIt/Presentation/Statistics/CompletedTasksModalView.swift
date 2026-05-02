@@ -1,3 +1,11 @@
+//
+//  CompletedTasksModalView.swift
+//  TrackIt
+//
+//  Модальное окно со списком выполненных задач.
+//  Открывается с карточки прогресса и показывает empty state, если задач пока нет.
+//
+
 import SwiftUI
 
 struct CompletedTasksModalView: View {

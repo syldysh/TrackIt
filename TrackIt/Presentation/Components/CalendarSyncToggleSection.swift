@@ -1,3 +1,11 @@
+//
+//  CalendarSyncToggleSection.swift
+//  TrackIt
+//
+//  Переиспользуемая секция синхронизации с iOS Calendar.
+//  Даёт пользователю включить создание события для задачи.
+//
+
 import SwiftUI
 
 struct CalendarSyncToggleSection: View {

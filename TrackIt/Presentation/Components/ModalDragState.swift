@@ -1,3 +1,11 @@
+//
+//  ModalDragState.swift
+//  TrackIt
+//
+//  Общая логика свайпа вниз для модальных окон.
+//  Хранит смещение, затемнение фона и жест закрытия, чтобы не дублировать это в экранах.
+//
+
 import SwiftUI
 
 final class ModalDragState: ObservableObject {

@@ -1,3 +1,11 @@
+//
+//  CalendarFloatingAddButton.swift
+//  TrackIt
+//
+//  Плавающая кнопка добавления задачи на экране календаря.
+//  Вынесена отдельно, чтобы не смешивать кнопку с основной версткой календаря.
+//
+
 import SwiftUI
 
 struct CalendarFloatingAddButton: View {

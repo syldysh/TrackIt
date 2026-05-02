@@ -1,3 +1,11 @@
+//
+//  SchedulePickerViewModel.swift
+//  TrackIt
+//
+//  ViewModel формы выбора даты и времени в режиме планирования.
+//  Хранит состояние формы и проверяет разрешения для уведомлений и календаря.
+//
+
 import Foundation
 import Combine
 

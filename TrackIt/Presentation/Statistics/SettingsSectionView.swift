@@ -1,3 +1,11 @@
+//
+//  SettingsSectionView.swift
+//  TrackIt
+//
+//  Секция настроек на экране прогресса.
+//  Собирает пункты меню и передает выбранный пункт наружу.
+//
+
 import SwiftUI
 
 struct SettingsSectionView: View {
