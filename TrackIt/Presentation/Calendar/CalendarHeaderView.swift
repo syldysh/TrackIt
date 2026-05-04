@@ -13,34 +13,64 @@ struct CalendarHeaderView: View {
     @Binding var showViewMenu: Bool
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             navButton(icon: "chevron.left") { vm.goToPrev() }
 
-            Spacer()
+            Spacer(minLength: 6)
 
-            Button {
-                withAnimation(.smoothSpring) { showViewMenu.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Text(vm.headerMonthYear)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(Color(.label))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                        .layoutPriority(1)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color(.secondaryLabel))
-                }
+            titleButton
+
+            Spacer(minLength: 6)
+
+            if vm.shouldShowTodayButton {
+                todayButton
             }
-
-            Spacer()
-
             navButton(icon: "chevron.right") { vm.goToNext() }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
+    }
+
+    private var titleButton: some View {
+        Button {
+            withAnimation(.smoothSpring) { showViewMenu.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Text(vm.headerMonthYear)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(.label))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .layoutPriority(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+        }
+    }
+
+    private var todayButton: some View {
+        Button {
+            withAnimation(.smoothSpring) { vm.goToToday() }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Сегодня")
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .frame(maxWidth: 88)
+            .foregroundColor(.white)
+            .background(Color.brandAccent)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
     private func navButton(icon: String, action: @escaping () -> Void) -> some View {
