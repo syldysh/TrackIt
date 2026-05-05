@@ -193,7 +193,7 @@ struct InboxView: View {
             }
             .background(Color(.systemBackground))
             .cornerRadius(20, corners: [.topLeft, .topRight])
-            .offset(y: addTaskDragState.offset)
+            .modalDragOffset(addTaskDragState)
         }
         .ignoresSafeArea(edges: .bottom)
     }

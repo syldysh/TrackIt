@@ -20,7 +20,7 @@ struct AddTaskOverlay: View {
         VStack(spacing: 0) {
             Spacer()
             sheetContent
-                .offset(y: dragState.offset)
+                .modalDragOffset(dragState)
         }
         .ignoresSafeArea(edges: .bottom)
     }

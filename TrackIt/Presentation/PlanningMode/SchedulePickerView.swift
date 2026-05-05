@@ -44,7 +44,7 @@ struct SchedulePickerView: View {
                 .onTapGesture { onCancel() }
 
             sheetContent
-                .offset(y: dragState.offset)
+                .modalDragOffset(dragState)
                 .contentShape(Rectangle())
                 .onTapGesture { }
         }
