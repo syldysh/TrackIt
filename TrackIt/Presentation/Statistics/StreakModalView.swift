@@ -25,7 +25,7 @@ struct StreakModalView: View {
         .background(Color(.systemBackground))
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.15), radius: 20, y: 8)
-        .offset(y: dragState.offset)
+        .modalDragOffset(dragState)
     }
 
     private var dragArea: some View {
