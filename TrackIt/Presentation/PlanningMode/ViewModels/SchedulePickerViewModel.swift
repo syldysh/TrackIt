@@ -11,7 +11,8 @@ import Combine
 
 final class SchedulePickerViewModel: ObservableObject {
     @Published var schedDate: Date? = RuDate.startOfDay(Date())
-    @Published var nativeDateSelection = Date()
+    @Published var nativeDateSelection = RuDate.startOfDay(Date())
+    @Published var displayedMonth = RuDate.startOfMonth(Date())
     @Published var showTimePicker = false
     @Published var timeDate = Date()
     @Published var selectedDuration: Int16 = 0
@@ -23,6 +24,7 @@ final class SchedulePickerViewModel: ObservableObject {
 
     private let notificationService: any NotificationServiceProtocol
     private let calendarSyncService: any CalendarSyncServiceProtocol
+    private var preferredDay = RuDate.calendar.component(.day, from: Date())
 
     init(
         notificationService: any NotificationServiceProtocol,
@@ -33,6 +35,19 @@ final class SchedulePickerViewModel: ObservableObject {
     }
 
     var today: Date { RuDate.startOfDay(Date()) }
+
+    var shouldShowTodayButton: Bool {
+        !Calendar.current.isDateInToday(nativeDateSelection)
+    }
+
+    var displayedMonthTitle: String {
+        RuDate.monthYearTitle(for: displayedMonth)
+    }
+
+    var canGoToPreviousMonth: Bool {
+        let currentMonth = RuDate.startOfMonth(Date())
+        return displayedMonth > currentMonth
+    }
 
     var canShowReminderToggle: Bool {
         showTimePicker
@@ -60,7 +75,69 @@ final class SchedulePickerViewModel: ObservableObject {
     }
 
     func updateDateSelection(_ value: Date) {
-        schedDate = RuDate.startOfDay(value)
+        let selectedDay = RuDate.startOfDay(value)
+        setSelection(selectedDay, updatesPreferredDay: true)
+    }
+
+    func goToToday() {
+        let today = RuDate.startOfDay(Date())
+        setSelection(today, updatesPreferredDay: true)
+    }
+
+    func goToPreviousMonth() {
+        guard canGoToPreviousMonth,
+              let month = RuDate.calendar.date(byAdding: .month, value: -1, to: displayedMonth) else {
+            return
+        }
+        moveToMonth(month)
+    }
+
+    func goToNextMonth() {
+        guard let month = RuDate.calendar.date(byAdding: .month, value: 1, to: displayedMonth) else { return }
+        moveToMonth(month)
+    }
+
+    func selectDayInDisplayedMonth(_ day: Int) {
+        guard let date = dateInDisplayedMonth(day: day), date >= today else { return }
+        setSelection(date, updatesPreferredDay: true)
+    }
+
+    func dateInDisplayedMonth(day: Int) -> Date? {
+        let year = RuDate.calendar.component(.year, from: displayedMonth)
+        let month = RuDate.calendar.component(.month, from: displayedMonth)
+        return RuDate.calendar.date(from: DateComponents(year: year, month: month, day: day))
+            .map(RuDate.startOfDay)
+    }
+
+    func isSelectedDay(_ day: Int) -> Bool {
+        guard let date = dateInDisplayedMonth(day: day) else { return false }
+        return RuDate.calendar.isDate(date, inSameDayAs: nativeDateSelection)
+    }
+
+    func isPastDay(_ day: Int) -> Bool {
+        guard let date = dateInDisplayedMonth(day: day) else { return true }
+        return date < today
+    }
+
+    private func moveToMonth(_ month: Date) {
+        displayedMonth = RuDate.startOfMonth(month)
+
+        let monthIndex = RuDate.calendar.component(.month, from: displayedMonth) - 1
+        let year = RuDate.calendar.component(.year, from: displayedMonth)
+        let day = min(preferredDay, RuDate.daysInMonth(year: year, month: monthIndex))
+        guard let preservedDate = dateInDisplayedMonth(day: day) else { return }
+
+        setSelection(max(preservedDate, today), updatesPreferredDay: false)
+    }
+
+    private func setSelection(_ date: Date, updatesPreferredDay: Bool) {
+        let selectedDay = RuDate.startOfDay(date)
+        nativeDateSelection = selectedDay
+        schedDate = selectedDay
+        displayedMonth = RuDate.startOfMonth(selectedDay)
+        if updatesPreferredDay {
+            preferredDay = RuDate.calendar.component(.day, from: selectedDay)
+        }
     }
 
     func setReminderEnabled(_ enabled: Bool) {
