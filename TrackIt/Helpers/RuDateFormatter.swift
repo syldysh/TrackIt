@@ -111,6 +111,11 @@ enum RuDate {
         calendar.startOfDay(for: date)
     }
 
+    static func startOfMonth(_ date: Date) -> Date {
+        let components = calendar.dateComponents([.year, .month], from: date)
+        return calendar.date(from: components).map(startOfDay) ?? startOfDay(date)
+    }
+
     static func addDays(_ date: Date, _ days: Int) -> Date {
         calendar.date(byAdding: .day, value: days, to: date) ?? date
     }
