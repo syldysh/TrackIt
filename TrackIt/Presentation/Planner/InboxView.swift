@@ -12,7 +12,9 @@ struct InboxView: View {
     @EnvironmentObject var vm: InboxViewModel
 
     @StateObject private var addTaskDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
+    @StateObject private var scheduleTaskDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
     @State private var showPlanningMode = false
+    @State private var taskToSchedule: Task?
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -37,19 +39,30 @@ struct InboxView: View {
                         .zIndex(19)
                 }
                 if vm.showAddModal {
-                    addTaskSheet
+                    InboxAddTaskSheetView(
+                        dragState: addTaskDragState,
+                        inputFocused: $inputFocused,
+                        onCommit: commit,
+                        onDismiss: dismissAdd
+                    )
+                    .environmentObject(vm)
                         .transition(.move(edge: .bottom))
                         .zIndex(20)
                 }
+                if taskToSchedule != nil {
+                    scheduleTaskSheet
+                        .zIndex(30)
+                }
             }
         }
-        .background(TabBarHider(hide: vm.showAddModal || showPlanningMode))
+        .background(TabBarHider(hide: vm.showAddModal || showPlanningMode || taskToSchedule != nil))
         .onChange(of: vm.showAddModal) { _, isPresented in
             if isPresented { addTaskDragState.reset() }
         }
+        .onChange(of: taskToSchedule?.id) { _, taskID in
+            if taskID != nil { scheduleTaskDragState.reset() }
+        }
     }
-
-    // MARK: - Main Content
 
     private var mainContent: some View {
         ZStack {
@@ -74,8 +87,6 @@ struct InboxView: View {
             }
         }
     }
-
-    // MARK: - Empty State
 
     private var emptyState: some View {
         GeometryReader { proxy in
@@ -112,8 +123,6 @@ struct InboxView: View {
         }
     }
 
-    // MARK: - Task List
-
     private var taskList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -125,7 +134,11 @@ struct InboxView: View {
 
                 VStack(spacing: 0) {
                     ForEach(vm.inboxTasks) { task in
-                        InboxTaskRow(task: task, onDelete: { vm.delete(task) })
+                        InboxTaskRow(
+                            task: task,
+                            onSchedule: { openScheduleSheet(for: task) },
+                            onDelete: { vm.delete(task) }
+                        )
                         if task.id != vm.inboxTasks.last?.id {
                             Divider().padding(.leading, 20)
                         }
@@ -138,8 +151,6 @@ struct InboxView: View {
             .padding(.bottom, 100)
         }
     }
-
-    // MARK: - Floating Buttons
 
     @ViewBuilder
     private var floatingButtons: some View {
@@ -180,99 +191,16 @@ struct InboxView: View {
         }
     }
 
-    // MARK: - Add Task Sheet
-
-    private var addTaskSheet: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            VStack(spacing: 0) {
-                sheetHeader
-                hint
-                textField
-                sheetButtons
-            }
-            .background(Color(.systemBackground))
-            .cornerRadius(20, corners: [.topLeft, .topRight])
-            .modalDragOffset(addTaskDragState)
-        }
-        .ignoresSafeArea(edges: .bottom)
+    private var scheduleTaskSheet: some View {
+        PlanningScheduleOverlayView(
+            task: taskToSchedule,
+            notificationService: vm.notificationService,
+            calendarSyncService: vm.calendarSyncService,
+            dragState: scheduleTaskDragState,
+            onSchedule: scheduleSingleTask,
+            onCancel: dismissScheduleSheet
+        )
     }
-
-    private var sheetHeader: some View {
-        ModalDragHandle(dragState: addTaskDragState, onDismiss: dismissAdd) {
-            HStack {
-                Text("Новая задача")
-                    .font(.system(size: 20, weight: .semibold))
-                Spacer()
-                Button { dismissAdd() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(width: 32, height: 32)
-                        .background(Color(.systemGray6))
-                        .clipShape(Circle())
-                }
-            }
-            .padding(.horizontal, 20)
-        }
-        .padding(.bottom, 12)
-    }
-
-    private var hint: some View {
-        (Text("Задачу можно будет запланировать через режим планирования ")
-            + Text(Image(systemName: "bolt.fill")).foregroundColor(.orange))
-            .font(.system(size: 13))
-            .foregroundColor(Color(.secondaryLabel))
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-    }
-
-    private var textField: some View {
-        TextField("Что нужно сделать?", text: $vm.newText)
-            .focused($inputFocused)
-            .font(.system(size: 17))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color(.systemGray6))
-            .cornerRadius(16)
-            .padding(.horizontal, 20)
-            .submitLabel(.done)
-            .onSubmit { commit() }
-            .padding(.bottom, 20)
-    }
-
-    private var sheetButtons: some View {
-        HStack(spacing: 12) {
-            Button { dismissAdd() } label: {
-                Text("Отмена")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.red)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(16)
-            }
-            Button { commit() } label: {
-                Text("Добавить")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(vm.canAdd ? Color.brandAccent : Color.brandAccent.opacity(0.35))
-                    .animation(.smoothSpring, value: vm.canAdd)
-                    .cornerRadius(16)
-            }
-            .disabled(!vm.canAdd)
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 32)
-    }
-
-    // MARK: - Actions
 
     private func commit() {
         withAnimation(.sheetSpring) { vm.commitTask() }
@@ -285,5 +213,33 @@ struct InboxView: View {
             vm.newText = ""
         }
         inputFocused = false
+    }
+
+    private func openScheduleSheet(for task: Task) {
+        scheduleTaskDragState.reset()
+        withAnimation(.sheetSpring) { taskToSchedule = task }
+    }
+
+    private func scheduleSingleTask(
+        _ task: Task,
+        date: Date,
+        time: String?,
+        duration: Int16,
+        reminderEnabled: Bool,
+        calendarSyncEnabled: Bool
+    ) {
+        vm.scheduleFromInbox(
+            task,
+            date: date,
+            time: time,
+            duration: duration,
+            reminderEnabled: reminderEnabled,
+            calendarSyncEnabled: calendarSyncEnabled
+        )
+        withAnimation(.sheetSpring) { taskToSchedule = nil }
+    }
+
+    private func dismissScheduleSheet() {
+        withAnimation(.sheetSpring) { taskToSchedule = nil }
     }
 }
