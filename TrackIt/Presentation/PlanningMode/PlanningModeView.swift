@@ -14,41 +14,23 @@ struct PlanningModeView: View {
     let initialQueue: [Task]
 
     @State private var queue: [Task]? = nil
-    @State private var currentIndex = 0
     @State private var offset: CGSize = .zero
-    @State private var lockedAxis: SwipeAxis? = nil
+    @State private var lockedAxis: PlanningSwipeAxis? = nil
     @State private var swipeHandled = false
     @State private var swipeArcIsFadingOut = false
     @State private var showScheduler = false
     @State private var pendingTask: Task? = nil
     @StateObject private var scheduleDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
 
-    enum SwipeAxis { case horizontal, vertical }
-
     private var activeQueue: [Task] { queue ?? initialQueue }
-    private var currentTask: Task? { activeQueue[safe: currentIndex] }
+    private var currentTask: Task? { activeQueue.first }
     private func ensureQueue() { if queue == nil { queue = initialQueue } }
-    private var remaining: Int { max(0, activeQueue.count - currentIndex) }
-    private var isFinished: Bool { activeQueue.isEmpty || currentIndex >= activeQueue.count }
+    private var remaining: Int { activeQueue.count }
+    private var isFinished: Bool { activeQueue.isEmpty }
     private var cardExitDistance: CGFloat { UIScreen.main.bounds.width + 160 }
-    private var swipeArcDirection: PlanningSwipeArcDirection {
-        if offset.width > 20 { return .right }
-        if offset.width < -20 { return .left }
-        if offset.height > 20 { return .down }
-        return .none
-    }
-
-    private var swipeArcProgress: CGFloat {
-        let rawProgress: CGFloat
-        switch swipeArcDirection {
-        case .right, .left:
-            rawProgress = min(abs(offset.width) / 150, 1)
-        case .down:
-            rawProgress = min(offset.height / 150, 1)
-        case .none:
-            rawProgress = 0
-        }
-        return swipeArcIsFadingOut ? 0 : rawProgress
+    private var visibleTasks: [Task] { Array(activeQueue.prefix(3)) }
+    private var swipeArcState: PlanningSwipeArcState {
+        PlanningSwipeArcState(offset: offset, isFadingOut: swipeArcIsFadingOut)
     }
 
     var body: some View {
@@ -61,7 +43,7 @@ struct PlanningModeView: View {
                     dismiss()
                 }
 
-            PlanningSwipeArcView(direction: swipeArcDirection, progress: swipeArcProgress)
+            PlanningSwipeArcView(direction: swipeArcState.direction, progress: swipeArcState.progress)
                 .ignoresSafeArea()
 
             GeometryReader { proxy in
@@ -84,7 +66,7 @@ struct PlanningModeView: View {
 
                         Spacer(minLength: isCompactHeight ? 8 : 0)
 
-                        hintText
+                        PlanningSwipeHintView()
                             .padding(.horizontal, 16)
                             .padding(.bottom, isCompactHeight ? 16 : 28)
                     }
@@ -92,18 +74,12 @@ struct PlanningModeView: View {
             }
 
             if showScheduler {
-                ModalDimBackground(dragState: scheduleDragState, baseOpacity: 0.32, onTap: cancelSchedule)
-                    .transition(.opacity)
-                    .zIndex(19)
-            }
-
-            if showScheduler, let task = pendingTask {
-                SchedulePickerView(
-                    task: task,
+                PlanningScheduleOverlayView(
+                    task: pendingTask,
                     notificationService: vm.notificationService,
                     calendarSyncService: vm.calendarSyncService,
                     dragState: scheduleDragState,
-                    onSchedule: { date, time, duration, reminderEnabled, calendarSyncEnabled in
+                    onSchedule: { task, date, time, duration, reminderEnabled, calendarSyncEnabled in
                         scheduleTask(
                             task,
                             on: date,
@@ -115,8 +91,6 @@ struct PlanningModeView: View {
                     },
                     onCancel: { cancelSchedule() }
                 )
-                .transition(.move(edge: .bottom))
-                .zIndex(20)
             }
         }
         .onAppear { if queue == nil { queue = initialQueue } }
@@ -126,62 +100,22 @@ struct PlanningModeView: View {
 
     @ViewBuilder
     private var cardSection: some View {
-        if let task = currentTask {
-            PlanningCardView(
-                task: task,
-                totalRemaining: remaining,
-                offset: offset,
+        if !visibleTasks.isEmpty {
+            PlanningCardStackView(
+                tasks: visibleTasks,
+                remaining: remaining,
+                dragOffset: offset,
+                isSwipeHandled: swipeHandled,
+                lockedAxis: $lockedAxis,
+                onDragBegan: showSwipeArcWithoutAnimation,
+                onDragOffsetChange: setDragOffset,
+                onDragEnded: handleSwipe,
                 onSkip: skipCurrentTask,
                 onDelete: deleteCurrentTask,
                 onSchedule: openScheduler
             )
-            .id(task.id)
-            .transition(cardTransition)
-            .gesture(
-                DragGesture()
-                    .onChanged { v in
-                        guard !swipeHandled else { return }
-                        showSwipeArcWithoutAnimation()
-                        if lockedAxis == nil && (abs(v.translation.width) > 10 || abs(v.translation.height) > 10) {
-                            lockedAxis = abs(v.translation.width) >= abs(v.translation.height) ? .horizontal : .vertical
-                        }
-                        let nextOffset: CGSize
-                        switch lockedAxis {
-                        case .horizontal:
-                            nextOffset = CGSize(width: v.translation.width, height: 0)
-                        case .vertical:
-                            nextOffset = CGSize(width: 0, height: max(v.translation.height, 0))
-                        case nil:
-                            nextOffset = offset
-                        }
-                        setDragOffset(nextOffset)
-                    }
-                    .onEnded { v in
-                        handleSwipe(v, task: task)
-                        lockedAxis = nil
-                    }
-            )
+            .animation(.smoothSpring, value: visibleTasks.map(\.id))
         }
-    }
-
-    private var cardTransition: AnyTransition {
-        .asymmetric(
-            insertion: .opacity
-                .combined(with: .scale(scale: 0.96))
-                .combined(with: .offset(x: 0, y: 18)),
-            removal: .opacity
-        )
-    }
-
-    // MARK: - Hint Text
-
-    private var hintText: some View {
-        Text("← Пропустить   → Запланировать   ↓ Удалить")
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundColor(.white.opacity(0.5))
-            .multilineTextAlignment(.center)
-            .lineLimit(1)
-            .minimumScaleFactor(0.72)
     }
 
     // MARK: - Swipe Handling
@@ -196,7 +130,7 @@ struct PlanningModeView: View {
             openSchedulerFor(task)
         } else if tx < -90 && lockedAxis == .horizontal {
             animateCardOut(to: CGSize(width: -cardExitDistance, height: 0)) {
-                currentIndex += 1
+                removeCurrentTaskFromQueue()
             }
         } else if ty > 100 && lockedAxis == .vertical {
             animateCardOut(to: CGSize(width: 0, height: cardExitDistance)) {
@@ -214,7 +148,7 @@ struct PlanningModeView: View {
     private func skipCurrentTask() {
         guard !swipeHandled, currentTask != nil else { return }
         animateCardOut(to: CGSize(width: -cardExitDistance, height: 0)) {
-            currentIndex += 1
+            removeCurrentTaskFromQueue()
         }
     }
 
@@ -248,14 +182,8 @@ struct PlanningModeView: View {
         reminderEnabled: Bool = false,
         calendarSyncEnabled: Bool = false
     ) {
-        vm.scheduleFromInbox(
-            task,
-            date: date,
-            time: time,
-            duration: duration,
-            reminderEnabled: reminderEnabled,
-            calendarSyncEnabled: calendarSyncEnabled
-        )
+        vm.scheduleFromInbox(task, date: date, time: time, duration: duration,
+                             reminderEnabled: reminderEnabled, calendarSyncEnabled: calendarSyncEnabled)
         withAnimation(.smoothSpring) { removeCurrentTaskFromQueue() }
         withAnimation(.sheetSpring) { showScheduler = false }
         pendingTask = nil
@@ -272,11 +200,8 @@ struct PlanningModeView: View {
 
     private func removeCurrentTaskFromQueue() {
         ensureQueue()
-        guard var queue, queue.indices.contains(currentIndex) else { return }
-        queue.remove(at: currentIndex)
-        if currentIndex >= queue.count && currentIndex > 0 {
-            currentIndex = queue.count - 1
-        }
+        guard var queue, !queue.isEmpty else { return }
+        queue.removeFirst()
         self.queue = queue
     }
 
@@ -285,15 +210,6 @@ struct PlanningModeView: View {
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             offset = newOffset
-        }
-    }
-
-    private func resetOffsetWithoutAnimation() {
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            offset = .zero
-            swipeArcIsFadingOut = false
         }
     }
 
@@ -316,11 +232,19 @@ struct PlanningModeView: View {
             offset = targetOffset
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-            resetOffsetWithoutAnimation()
-            withAnimation(.smoothSpring) {
-                updateQueue()
-            }
+            finishCardExit(updateQueue)
             swipeHandled = false
+        }
+    }
+
+    private func finishCardExit(_ updateQueue: () -> Void) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            updateQueue()
+            offset = .zero
+            lockedAxis = nil
+            swipeArcIsFadingOut = false
         }
     }
 }
