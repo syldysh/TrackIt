@@ -23,7 +23,10 @@ struct CalendarHeaderView: View {
             Spacer(minLength: 6)
 
             if vm.shouldShowTodayButton {
-                todayButton
+                CalendarTodayButton {
+                    vm.goToToday()
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
             navButton(icon: "chevron.right") { vm.goToNext() }
         }
@@ -48,29 +51,6 @@ struct CalendarHeaderView: View {
                     .foregroundColor(Color(.secondaryLabel))
             }
         }
-    }
-
-    private var todayButton: some View {
-        Button {
-            withAnimation(.smoothSpring) { vm.goToToday() }
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 12, weight: .semibold))
-                Text("Сегодня")
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .frame(maxWidth: 88)
-            .foregroundColor(.white)
-            .background(Color.brandAccent)
-            .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
     private func navButton(icon: String, action: @escaping () -> Void) -> some View {

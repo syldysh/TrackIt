@@ -40,10 +40,6 @@ final class SchedulePickerViewModel: ObservableObject {
         !Calendar.current.isDateInToday(nativeDateSelection)
     }
 
-    var displayedMonthTitle: String {
-        RuDate.monthYearTitle(for: displayedMonth)
-    }
-
     var canGoToPreviousMonth: Bool {
         let currentMonth = RuDate.startOfMonth(Date())
         return displayedMonth > currentMonth
@@ -107,16 +103,6 @@ final class SchedulePickerViewModel: ObservableObject {
         let month = RuDate.calendar.component(.month, from: displayedMonth)
         return RuDate.calendar.date(from: DateComponents(year: year, month: month, day: day))
             .map(RuDate.startOfDay)
-    }
-
-    func isSelectedDay(_ day: Int) -> Bool {
-        guard let date = dateInDisplayedMonth(day: day) else { return false }
-        return RuDate.calendar.isDate(date, inSameDayAs: nativeDateSelection)
-    }
-
-    func isPastDay(_ day: Int) -> Bool {
-        guard let date = dateInDisplayedMonth(day: day) else { return true }
-        return date < today
     }
 
     private func moveToMonth(_ month: Date) {
