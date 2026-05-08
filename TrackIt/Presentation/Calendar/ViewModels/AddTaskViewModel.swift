@@ -29,9 +29,9 @@ final class AddTaskViewModel: ObservableObject {
 
     // MARK: - Зависимости
 
-    private let repository: any TaskRepositoryProtocol
-    private let notificationService: any NotificationServiceProtocol
-    private let calendarSyncService: any CalendarSyncServiceProtocol
+    let repository: any TaskRepositoryProtocol
+    let notificationService: any NotificationServiceProtocol
+    let calendarSyncService: any CalendarSyncServiceProtocol
 
     // MARK: - Init
 
@@ -195,64 +195,6 @@ final class AddTaskViewModel: ObservableObject {
         reset()
     }
 
-    // MARK: - Уведомления
-
-    func setReminderEnabled(_ enabled: Bool) {
-        guard enabled else {
-            disableReminder()
-            return
-        }
-
-        guard showTimePicker else {
-            disableReminder()
-            return
-        }
-
-        notificationService.requestAuthorizationIfNeeded { [weak self] granted in
-            guard let self else { return }
-            self.reminderEnabled = granted
-            self.notificationPermissionMessage = granted ? nil : Self.permissionDeniedText
-        }
-    }
-
-    func disableReminder() {
-        reminderEnabled = false
-        notificationPermissionMessage = nil
-    }
-
-    // MARK: - Календарь
-
-    func setCalendarSyncEnabled(_ enabled: Bool) {
-        guard enabled else {
-            disableCalendarSync()
-            return
-        }
-
-        guard showTimePicker else {
-            disableCalendarSync()
-            return
-        }
-
-        calendarSyncService.requestAuthorizationIfNeeded { [weak self] granted in
-            guard let self else { return }
-            self.calendarSyncEnabled = granted
-            self.calendarPermissionMessage = granted ? nil : Self.calendarPermissionDeniedText
-        }
-    }
-
-    func disableCalendarSync() {
-        calendarSyncEnabled = false
-        calendarPermissionMessage = nil
-    }
-
-    private func syncSideEffects(for task: Task) {
-        notificationService.syncNotification(for: task)
-        calendarSyncService.syncEvent(for: task) { [weak self] eventIdentifier in
-            guard task.calendarEventIdentifier != eventIdentifier else { return }
-            _ = self?.repository.updateCalendarEventIdentifier(eventIdentifier, for: task.id)
-        }
-    }
-
     // MARK: - Сбросить форму
 
     func reset() {
@@ -269,7 +211,4 @@ final class AddTaskViewModel: ObservableObject {
         calendarSyncEnabled = false
         calendarPermissionMessage = nil
     }
-
-    private static let permissionDeniedText = "Разрешение не выдано. Включите уведомления для TrackIt в настройках iOS."
-    private static let calendarPermissionDeniedText = "Разрешение не выдано. Включите доступ к календарям для TrackIt в настройках iOS."
 }
