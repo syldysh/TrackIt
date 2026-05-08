@@ -14,6 +14,34 @@ enum PlanningSwipeArcDirection {
     case down
 }
 
+struct PlanningSwipeArcState {
+    let direction: PlanningSwipeArcDirection
+    let progress: CGFloat
+
+    init(offset: CGSize, isFadingOut: Bool) {
+        if offset.width > 20 {
+            direction = .right
+        } else if offset.width < -20 {
+            direction = .left
+        } else if offset.height > 20 {
+            direction = .down
+        } else {
+            direction = .none
+        }
+
+        let rawProgress: CGFloat
+        switch direction {
+        case .right, .left:
+            rawProgress = min(abs(offset.width) / 150, 1)
+        case .down:
+            rawProgress = min(offset.height / 150, 1)
+        case .none:
+            rawProgress = 0
+        }
+        progress = isFadingOut ? 0 : rawProgress
+    }
+}
+
 struct PlannerSwipeArcShape: Shape {
     let direction: PlanningSwipeArcDirection
     var progress: CGFloat
