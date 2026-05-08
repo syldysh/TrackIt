@@ -18,6 +18,7 @@ struct PlanningModeView: View {
     @State private var offset: CGSize = .zero
     @State private var lockedAxis: SwipeAxis? = nil
     @State private var swipeHandled = false
+    @State private var swipeArcIsFadingOut = false
     @State private var showScheduler = false
     @State private var pendingTask: Task? = nil
     @StateObject private var scheduleDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
@@ -30,6 +31,25 @@ struct PlanningModeView: View {
     private var remaining: Int { max(0, activeQueue.count - currentIndex) }
     private var isFinished: Bool { activeQueue.isEmpty || currentIndex >= activeQueue.count }
     private var cardExitDistance: CGFloat { UIScreen.main.bounds.width + 160 }
+    private var swipeArcDirection: PlanningSwipeArcDirection {
+        if offset.width > 20 { return .right }
+        if offset.width < -20 { return .left }
+        if offset.height > 20 { return .down }
+        return .none
+    }
+
+    private var swipeArcProgress: CGFloat {
+        let rawProgress: CGFloat
+        switch swipeArcDirection {
+        case .right, .left:
+            rawProgress = min(abs(offset.width) / 150, 1)
+        case .down:
+            rawProgress = min(offset.height / 150, 1)
+        case .none:
+            rawProgress = 0
+        }
+        return swipeArcIsFadingOut ? 0 : rawProgress
+    }
 
     var body: some View {
         ZStack {
@@ -40,6 +60,9 @@ struct PlanningModeView: View {
                     guard !showScheduler else { return }
                     dismiss()
                 }
+
+            PlanningSwipeArcView(direction: swipeArcDirection, progress: swipeArcProgress)
+                .ignoresSafeArea()
 
             GeometryReader { proxy in
                 let isCompactHeight = proxy.size.height < 620
@@ -118,6 +141,7 @@ struct PlanningModeView: View {
                 DragGesture()
                     .onChanged { v in
                         guard !swipeHandled else { return }
+                        showSwipeArcWithoutAnimation()
                         if lockedAxis == nil && (abs(v.translation.width) > 10 || abs(v.translation.height) > 10) {
                             lockedAxis = abs(v.translation.width) >= abs(v.translation.height) ? .horizontal : .vertical
                         }
@@ -152,12 +176,12 @@ struct PlanningModeView: View {
     // MARK: - Hint Text
 
     private var hintText: some View {
-        Text("Свайп: ← пропустить · → запланировать · ↓ удалить")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundColor(.white.opacity(0.45))
+        Text("← Пропустить   → Запланировать   ↓ Удалить")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(.white.opacity(0.5))
             .multilineTextAlignment(.center)
-            .lineLimit(2)
-            .minimumScaleFactor(0.82)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
     }
 
     // MARK: - Swipe Handling
@@ -265,12 +289,29 @@ struct PlanningModeView: View {
     }
 
     private func resetOffsetWithoutAnimation() {
-        setDragOffset(.zero)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            offset = .zero
+            swipeArcIsFadingOut = false
+        }
+    }
+
+    private func showSwipeArcWithoutAnimation() {
+        guard swipeArcIsFadingOut else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            swipeArcIsFadingOut = false
+        }
     }
 
     private func animateCardOut(to targetOffset: CGSize, afterFlight updateQueue: @escaping () -> Void) {
         guard !swipeHandled else { return }
         swipeHandled = true
+        withAnimation(.easeOut(duration: 0.18)) {
+            swipeArcIsFadingOut = true
+        }
         withAnimation(.easeOut(duration: 0.22)) {
             offset = targetOffset
         }

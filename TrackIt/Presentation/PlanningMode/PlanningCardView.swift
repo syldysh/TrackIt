@@ -17,17 +17,6 @@ struct PlanningCardView: View {
 
     private static let hPadding: CGFloat = 20
 
-    private var progress: CGFloat {
-        let ax = abs(offset.width)
-        let ay = offset.height
-        switch activeDirection {
-        case .right: return min(ax / 120, 1)
-        case .left:  return min(ax / 120, 1)
-        case .down:  return min(ay / 120, 1)
-        case .none:  return 0
-        }
-    }
-
     private var activeDirection: SwipeDirection {
         if offset.width > 20  { return .right }
         if offset.width < -20 { return .left }
@@ -38,37 +27,7 @@ struct PlanningCardView: View {
     private enum SwipeDirection { case none, left, right, down }
 
     var body: some View {
-        ZStack {
-            mainCard
-        }
-        .background {
-            colorBackdrop
-        }
-    }
-
-    @ViewBuilder
-    private var colorBackdrop: some View {
-        switch activeDirection {
-        case .right:
-            backdropCard(color: .brandGreen,  icon: "calendar.badge.plus", progress: progress)
-        case .left:
-            backdropCard(color: .brandOrange, icon: "arrow.uturn.left",    progress: progress)
-        case .down:
-            backdropCard(color: .brandRed,    icon: "trash",               progress: progress)
-        case .none:
-            EmptyView()
-        }
-    }
-
-    private func backdropCard(color: Color, icon: String, progress: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 20)
-            .fill(color.opacity(Double(progress) * 0.35))
-            .padding(.horizontal, Self.hPadding)
-            .overlay(
-                Image(systemName: icon)
-                    .font(.system(size: 40, weight: .medium))
-                    .foregroundColor(color.opacity(Double(progress)))
-            )
+        mainCard
     }
 
     private var mainCard: some View {
