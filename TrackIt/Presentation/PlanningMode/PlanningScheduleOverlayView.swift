@@ -2,7 +2,7 @@
 //  PlanningScheduleOverlayView.swift
 //  TrackIt
 //
-//  Overlay выбора даты для задачи из режима планирования.
+//  Overlay выбора даты для задачи в планировщике.
 //
 
 import SwiftUI
