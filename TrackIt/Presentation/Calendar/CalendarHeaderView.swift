@@ -1,3 +1,11 @@
+//
+//  CalendarHeaderView.swift
+//  TrackIt
+//
+//  Верхняя панель календаря с месяцем и стрелками навигации.
+//  Также открывает меню выбора режима просмотра.
+//
+
 import SwiftUI
 
 struct CalendarHeaderView: View {
@@ -5,34 +13,44 @@ struct CalendarHeaderView: View {
     @Binding var showViewMenu: Bool
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             navButton(icon: "chevron.left") { vm.goToPrev() }
 
-            Spacer()
+            Spacer(minLength: 6)
 
-            Button {
-                withAnimation(.smoothSpring) { showViewMenu.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Text(vm.headerMonthYear)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(Color(.label))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                        .layoutPriority(1)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color(.secondaryLabel))
+            titleButton
+
+            Spacer(minLength: 6)
+
+            if vm.shouldShowTodayButton {
+                CalendarTodayButton {
+                    vm.goToToday()
                 }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
-
-            Spacer()
-
             navButton(icon: "chevron.right") { vm.goToNext() }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
+    }
+
+    private var titleButton: some View {
+        Button {
+            withAnimation(.smoothSpring) { showViewMenu.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Text(vm.headerMonthYear)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(.label))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .layoutPriority(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+        }
     }
 
     private func navButton(icon: String, action: @escaping () -> Void) -> some View {

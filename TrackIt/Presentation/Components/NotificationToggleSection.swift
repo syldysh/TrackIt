@@ -1,3 +1,11 @@
+//
+//  NotificationToggleSection.swift
+//  TrackIt
+//
+//  Переиспользуемая секция включения уведомления.
+//  Показывается в формах, когда у задачи выбрано конкретное время.
+//
+
 import SwiftUI
 
 struct NotificationToggleSection: View {

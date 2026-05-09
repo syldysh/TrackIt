@@ -133,25 +133,48 @@ struct CalendarView: View {
     private var dayTaskList: some View {
         let active = vm.sortedActiveTasks(for: vm.selectedDate)
         let completed = vm.completedTasks(for: vm.selectedDate)
+        let hasTasks = !active.isEmpty || !completed.isEmpty
 
-        return ScrollView {
-            if active.isEmpty && completed.isEmpty {
-                CalendarEmptyDayPlaceholder()
+        return ZStack(alignment: .top) {
+            if hasTasks {
+                taskScrollView(active: active, completed: completed)
+                    .transition(.identity)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(active) { task in
-                        taskRow(task)
+                CalendarEmptyDayPlaceholder()
+                    .padding(.top, emptyStateCalendarCompensation)
+                    .transition(.identity)
+                    .transaction { transaction in
+                        transaction.animation = nil
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 4)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
 
-                if !completed.isEmpty {
-                    completedSection(completed)
+    private func taskScrollView(active: [Task], completed: [Task]) -> some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(active) { task in
+                    taskRow(task)
                 }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+
+            if !completed.isEmpty {
+                completedSection(completed)
             }
             Spacer().frame(height: 100)
         }
+    }
+
+    private var emptyStateCalendarCompensation: CGFloat {
+        guard isExpanded else { return 0 }
+        let dayCount = RuDate.daysInMonth(year: vm.viewYear, month: vm.viewMonth)
+        let leadingEmptySlots = RuDate.firstWeekdayOfMonth(year: vm.viewYear, month: vm.viewMonth)
+        let rowCount = (leadingEmptySlots + dayCount + 6) / 7
+        let missingRows = max(0, 6 - rowCount)
+        return CGFloat(missingRows) * 48
     }
 
     private func taskRow(_ task: Task) -> some View {

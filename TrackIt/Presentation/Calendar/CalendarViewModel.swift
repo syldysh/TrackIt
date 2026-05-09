@@ -38,6 +38,23 @@ final class CalendarViewModel: ObservableObject {
     var selectedStr: String { RuDate.isoString(from: selectedDate) }
     var weekDays: [Date] { (0..<7).map { RuDate.addDays(weekStart, $0) } }
 
+    var shouldShowTodayButton: Bool {
+        let today = Date()
+        guard Calendar.current.isDateInToday(selectedDate) else { return true }
+
+        switch viewMode {
+        case .list:
+            let currentYear = Calendar.current.component(.year, from: today)
+            let currentMonth = Calendar.current.component(.month, from: today) - 1
+            return viewYear != currentYear || viewMonth != currentMonth
+        case .week:
+            let currentWeekStart = RuDate.weekStart(for: today)
+            return !Calendar.current.isDate(weekStart, inSameDayAs: currentWeekStart)
+        case .day:
+            return false
+        }
+    }
+
     var headerMonthYear: String {
         switch viewMode {
         case .list:
@@ -154,6 +171,14 @@ final class CalendarViewModel: ObservableObject {
         case .week: goToNextWeek()
         case .day:  selectDay(RuDate.addDays(selectedDate, 1))
         }
+    }
+
+    func goToToday() {
+        let today = RuDate.startOfDay(Date())
+        selectedDate = today
+        weekStart = RuDate.weekStart(for: today)
+        viewYear = RuDate.calendar.component(.year, from: today)
+        viewMonth = RuDate.calendar.component(.month, from: today) - 1
     }
 
     func goToPrevWeek() {

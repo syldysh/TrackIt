@@ -1,3 +1,11 @@
+//
+//  SettingsDetailModalView.swift
+//  TrackIt
+//
+//  Модальное окно для пунктов настроек и поддержки.
+//  Показывает нужный текст по выбранному разделу и закрывается через общий drag.
+//
+
 import SwiftUI
 
 struct SettingsDetailModalView: View {
@@ -17,7 +25,7 @@ struct SettingsDetailModalView: View {
         .background(Color(.systemBackground))
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.15), radius: 20, y: 8)
-        .offset(y: dragState.offset)
+        .modalDragOffset(dragState)
     }
 
     private var dragArea: some View {

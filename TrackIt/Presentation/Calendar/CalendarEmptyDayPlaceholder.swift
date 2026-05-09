@@ -1,3 +1,11 @@
+//
+//  CalendarEmptyDayPlaceholder.swift
+//  TrackIt
+//
+//  Пустое состояние для дня без задач.
+//  Помогает экрану не выглядеть сломанным, когда в выбранный день ничего нет.
+//
+
 import SwiftUI
 
 struct CalendarEmptyDayPlaceholder: View {

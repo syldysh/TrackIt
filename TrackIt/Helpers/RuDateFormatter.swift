@@ -14,56 +14,64 @@ extension Collection {
     }
 }
 
-// MARK: - Форматтеры (создаём один раз, используем везде)
-
 enum RuDate {
 
-    private static let locale = Locale(identifier: "ru_RU")
-    private static let fallbackShortWeekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    static let locale = Locale(identifier: "ru_RU")
+    private static let formatterLock = NSLock()
 
-    // Календарь с понедельником как первым днём недели
+    // Единый календарь приложения: ru_RU, понедельник первым днём недели.
     static let calendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
         cal.locale = locale
         cal.firstWeekday = 2
+        cal.timeZone = .autoupdatingCurrent
         return cal
     }()
 
-    // MARK: - Короткие названия дней недели
+    // 1 января 2024 — понедельник; от него строим подписи дней через Foundation.
+    private static let weekdayReferenceMonday: Date = {
+        let components = DateComponents(
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+            year: 2024,
+            month: 1,
+            day: 1
+        )
+        return calendar.date(from: components) ?? Date(timeIntervalSince1970: 1_704_067_200)
+    }()
 
-    // "Пн", ... , "Вс"
-    static let shortWeekdays: [String] = {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-
-        let symbols = formatter.shortStandaloneWeekdaySymbols
-            ?? formatter.shortWeekdaySymbols
-            ?? ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
-        guard symbols.count == 7 else {
-            return fallbackShortWeekdays
-        }
-        // У DateFormatter неделя начинается с воскресенья, сдвигаем на понедельник
-        guard let first = symbols.first else { return fallbackShortWeekdays }
-        return Array(symbols.dropFirst()) + [first]
+    private static let shortWeekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = locale
+        f.calendar = calendar
+        f.timeZone = calendar.timeZone
+        f.setLocalizedDateFormatFromTemplate("EEE")
+        return f
     }()
 
     private static func normalizeWeekdayIndex(_ index: Int) -> Int {
-        let count = fallbackShortWeekdays.count
+        let count = calendar.maximumRange(of: .weekday)?.count ?? 0
+        guard count > 0 else { return 0 }
         return ((index % count) + count) % count
+    }
+
+    static var shortWeekdays: [String] {
+        let count = calendar.maximumRange(of: .weekday)?.count ?? 0
+        return (0..<count).map(shortWeekday)
     }
 
     static func shortWeekday(at index: Int) -> String {
         let idx = normalizeWeekdayIndex(index)
-        return shortWeekdays[safe: idx] ?? fallbackShortWeekdays[safe: idx] ?? "Пн"
+        let date = calendar.date(byAdding: .day, value: idx, to: weekdayReferenceMonday) ?? weekdayReferenceMonday
+        return normalizeWeekdaySymbol(string(from: date, using: shortWeekdayFormatter))
     }
 
-    // MARK: - Форматирование дат
-
-    // Создаётся один раз — DateFormatter дорогой объект, не создаём каждый вызов
     private static let isoFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = calendar
+        f.timeZone = calendar.timeZone
         return f
     }()
 
@@ -71,6 +79,7 @@ enum RuDate {
         let f = DateFormatter()
         f.locale = locale
         f.calendar = calendar
+        f.timeZone = calendar.timeZone
         f.dateFormat = "LLLL yyyy"
         return f
     }()
@@ -79,16 +88,15 @@ enum RuDate {
         let f = DateFormatter()
         f.locale = locale
         f.calendar = calendar
+        f.timeZone = calendar.timeZone
         f.dateFormat = "d MMMM"
         return f
     }()
 
-    // Формат yyyy-MM-dd
     static func isoString(from date: Date) -> String {
-        isoFormatter.string(from: date)
+        string(from: date, using: isoFormatter)
     }
 
-    // ISO-номер дня недели: 0 = Пн, 1 = Вт, ..., 6 = Вс
     static func isoWeekday(_ date: Date) -> Int {
         let weekday = calendar.component(.weekday, from: date)
         return weekday == 1 ? 6 : weekday - 2
@@ -99,17 +107,19 @@ enum RuDate {
             ?? startOfDay(date)
     }
 
-    // Начало дня (00:00)
     static func startOfDay(_ date: Date) -> Date {
         calendar.startOfDay(for: date)
     }
 
-    // Сдвиг на N дней
+    static func startOfMonth(_ date: Date) -> Date {
+        let components = calendar.dateComponents([.year, .month], from: date)
+        return calendar.date(from: components).map(startOfDay) ?? startOfDay(date)
+    }
+
     static func addDays(_ date: Date, _ days: Int) -> Date {
         calendar.date(byAdding: .day, value: days, to: date) ?? date
     }
 
-    // Количество дней в месяце
     static func daysInMonth(year: Int, month: Int) -> Int {
         let components = DateComponents(year: year, month: month + 1)
         guard let date = calendar.date(from: components),
@@ -119,22 +129,17 @@ enum RuDate {
         return range.count
     }
 
-    // День недели первого числа месяца
     static func firstWeekdayOfMonth(year: Int, month: Int) -> Int {
         let components = DateComponents(year: year, month: month + 1, day: 1)
         guard let date = calendar.date(from: components) else { return 0 }
         return isoWeekday(date)
     }
 
-    // MARK: - Подписи для UI
-
-    // Всегда «Пн, 5 января» — без замены на Сегодня/Завтра
     static func dateDayLabel(_ date: Date) -> String {
         let weekday = isoWeekday(date)
-        return "\(shortWeekday(at: weekday)), \(dayMonthFormatter.string(from: date))"
+        return "\(shortWeekday(at: weekday)), \(string(from: date, using: dayMonthFormatter))"
     }
 
-    // «Сегодня», «Завтра» или «Пн, 5 января»
     static func dayLabel(_ date: Date) -> String {
         let today = startOfDay(Date())
         let target = startOfDay(date)
@@ -143,10 +148,9 @@ enum RuDate {
         if isoString(from: target) == isoString(from: addDays(today, 1)) { return "Завтра" }
 
         let weekday = isoWeekday(date)
-        return "\(shortWeekday(at: weekday)), \(dayMonthFormatter.string(from: date))"
+        return "\(shortWeekday(at: weekday)), \(string(from: date, using: dayMonthFormatter))"
     }
 
-    // Короткая подпись: «5 января» (без дня недели)
     static func shortDayLabel(_ date: Date) -> String {
         let today = startOfDay(Date())
         let target = startOfDay(date)
@@ -154,7 +158,7 @@ enum RuDate {
         if isoString(from: target) == isoString(from: today) { return "Сегодня" }
         if isoString(from: target) == isoString(from: addDays(today, 1)) { return "Завтра" }
 
-        return dayMonthFormatter.string(from: date)
+        return string(from: date, using: dayMonthFormatter)
     }
 
     static func monthYearTitle(year: Int, month: Int) -> String {
@@ -164,9 +168,22 @@ enum RuDate {
     }
 
     static func monthYearTitle(for date: Date) -> String {
-        monthYearFormatter.string(from: date)
+        string(from: date, using: monthYearFormatter)
     }
 
+    // DateFormatter не потокобезопасен, поэтому общий доступ закрыт lock-ом.
+    private static func string(from date: Date, using formatter: DateFormatter) -> String {
+        formatterLock.lock()
+        defer { formatterLock.unlock() }
+        return formatter.string(from: date)
+    }
+
+    private static func normalizeWeekdaySymbol(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ".", with: "")
+        guard let first = trimmed.first else { return "" }
+        return String(first).uppercased(with: locale) + String(trimmed.dropFirst())
+    }
 
     static func pluralTasks(_ count: Int) -> String {
         let mod10 = count % 10

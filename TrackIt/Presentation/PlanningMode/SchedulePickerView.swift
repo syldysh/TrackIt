@@ -44,7 +44,7 @@ struct SchedulePickerView: View {
                 .onTapGesture { onCancel() }
 
             sheetContent
-                .offset(y: dragState.offset)
+                .modalDragOffset(dragState)
                 .contentShape(Rectangle())
                 .onTapGesture { }
         }
@@ -113,7 +113,7 @@ struct SchedulePickerView: View {
     private var monthPicker: some View {
         DatePicker("", selection: $formVM.nativeDateSelection, in: formVM.today..., displayedComponents: .date)
             .datePickerStyle(.graphical)
-            .environment(\.locale, Locale(identifier: "ru_RU"))
+            .environment(\.locale, RuDate.locale)
             .padding(.horizontal, 12)
             .padding(.bottom, 16)
             .onChange(of: formVM.nativeDateSelection) { _, val in

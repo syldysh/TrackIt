@@ -20,7 +20,7 @@ struct AddTaskOverlay: View {
         VStack(spacing: 0) {
             Spacer()
             sheetContent
-                .offset(y: dragState.offset)
+                .modalDragOffset(dragState)
         }
         .ignoresSafeArea(edges: .bottom)
     }
@@ -134,10 +134,7 @@ struct AddTaskOverlay: View {
             .padding(.bottom, 12)
 
             if formVM.addDateMode == 2 {
-                DatePicker("", selection: $formVM.newDate, in: RuDate.startOfDay(Date())..., displayedComponents: .date)
-                    .datePickerStyle(.graphical)
-                    .environment(\.locale, Locale(identifier: "ru_RU"))
-                    .padding(.horizontal, 12)
+                DateSelectionCalendarView(selectedDate: $formVM.newDate, minimumDate: RuDate.startOfDay(Date()))
                     .background(Color(.systemGray6))
                     .cornerRadius(16)
                     .padding(.horizontal, 20)
@@ -152,8 +149,11 @@ struct AddTaskOverlay: View {
         return Button {
             withAnimation(.smoothSpring) {
                 formVM.addDateMode = mode
-                if mode == 0 { formVM.newDate = RuDate.startOfDay(Date()) }
-                else if mode == 1 { formVM.newDate = RuDate.addDays(RuDate.startOfDay(Date()), 1) }
+                if mode == 0 {
+                    formVM.newDate = RuDate.startOfDay(Date())
+                } else if mode == 1 {
+                    formVM.newDate = RuDate.addDays(RuDate.startOfDay(Date()), 1)
+                }
             }
         } label: {
             HStack(spacing: 4) {

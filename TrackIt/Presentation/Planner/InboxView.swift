@@ -1,3 +1,11 @@
+//
+//  InboxView.swift
+//  TrackIt
+//
+//  Экран планировщика со списком задач без даты.
+//  Отсюда можно быстро добавить задачу или перейти в режим планирования.
+//
+
 import SwiftUI
 
 struct InboxView: View {
@@ -185,7 +193,7 @@ struct InboxView: View {
             }
             .background(Color(.systemBackground))
             .cornerRadius(20, corners: [.topLeft, .topRight])
-            .offset(y: addTaskDragState.offset)
+            .modalDragOffset(addTaskDragState)
         }
         .ignoresSafeArea(edges: .bottom)
     }

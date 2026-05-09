@@ -1,3 +1,11 @@
+//
+//  CalendarSyncService.swift
+//  TrackIt
+//
+//  Сервис синхронизации задач с обычным календарём iOS.
+//  Создаёт, обновляет и удаляет событие, связанное с задачей.
+//
+
 import Foundation
 import EventKit
 

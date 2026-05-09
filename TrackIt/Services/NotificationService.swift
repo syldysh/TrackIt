@@ -1,3 +1,11 @@
+//
+//  NotificationService.swift
+//  TrackIt
+//
+//  Сервис для локальных уведомлений по задачам.
+//  Запрашивает разрешение, ставит напоминание и отменяет его по id задачи.
+//
+
 import Foundation
 import UserNotifications
 

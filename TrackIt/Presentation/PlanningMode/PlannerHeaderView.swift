@@ -1,3 +1,11 @@
+//
+//  PlannerHeaderView.swift
+//  TrackIt
+//
+//  Шапка режима планирования с кнопкой назад и названием экрана.
+//  Вынесена отдельно, чтобы основной экран не разрастался.
+//
+
 import SwiftUI
 
 struct PlannerHeaderView: View {
