@@ -16,10 +16,6 @@ struct StatisticsView: View {
     @StateObject private var settingsModalDragState = ModalDragState()
 
     private var isNarrowScreen: Bool { UIScreen.main.bounds.width <= 340 }
-    private var ringSize: CGFloat { isNarrowScreen ? 156 : 180 }
-    private var ringLineWidth: CGFloat { isNarrowScreen ? 12 : 14 }
-    private var chartHeight: CGFloat { isNarrowScreen ? 140 : 160 }
-    private var barMaxHeight: CGFloat { isNarrowScreen ? 118 : 140 }
     private var modalHorizontalPadding: CGFloat { isNarrowScreen ? 16 : 24 }
 
     var body: some View {
@@ -41,9 +37,15 @@ struct StatisticsView: View {
 
                 ScrollView {
                     VStack(spacing: 16) {
-                        completionRing
+                        StatisticsCompletionRingView(
+                            completionRate: vm.completionRate,
+                            isNarrowScreen: isNarrowScreen
+                        )
                         statCards
-                        activityChart
+                        StatisticsActivityChartView(
+                            activity: vm.weeklyActivity(),
+                            isNarrowScreen: isNarrowScreen
+                        )
                         settingsSection
                         appInfo
                     }
@@ -55,43 +57,6 @@ struct StatisticsView: View {
             settingsModalOverlay
         }
         .background(TabBarHider(hide: showCompletedTasks || showStreakDetails || selectedSettingsDestination != nil))
-    }
-
-    // MARK: - Completion Ring
-
-    private var completionRing: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .stroke(Color(.systemGray5), lineWidth: ringLineWidth)
-                    .frame(width: ringSize, height: ringSize)
-                Circle()
-                    .trim(from: 0, to: CGFloat(vm.completionRate) / 100)
-                    .stroke(Color.brandAccent, style: StrokeStyle(lineWidth: ringLineWidth, lineCap: .round))
-                    .frame(width: ringSize, height: ringSize)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeOut(duration: 1), value: vm.completionRate)
-                VStack(spacing: 4) {
-                    Text("\(vm.completionRate)%")
-                        .font(.system(size: 44, weight: .bold))
-                        .foregroundColor(.brandAccent)
-                    Text("Выполнено")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(.secondaryLabel))
-                }
-            }
-            Text(vm.completionRate >= 70
-                 ? "Отличная работа! Вы опережаете свою недельную цель"
-                 : "Продолжайте — вы на верном пути!")
-                .font(.system(size: 15))
-                .multilineTextAlignment(.center)
-                .foregroundColor(Color(.label))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(isNarrowScreen ? 20 : 28)
-        .frame(maxWidth: .infinity)
-        .background(Color(.systemBackground))
-        .cornerRadius(24)
     }
 
     // MARK: - Stat Cards
@@ -133,55 +98,6 @@ struct StatisticsView: View {
                 withAnimation(.sheetSpring) { showStreakDetails = true }
             }
         )
-    }
-
-    // MARK: - Activity Chart
-
-    private var activityChart: some View {
-        let activity = vm.weeklyActivity()
-        let maxVal = max(activity.max() ?? 1, 1)
-
-        return VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color(.systemPurple))
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Image(systemName: "chart.bar.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.white)
-                    )
-                Text("Тренд продуктивности")
-                    .font(.system(size: 18, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.86)
-            }
-
-            HStack(alignment: .bottom, spacing: 8) {
-                ForEach(Array(activity.enumerated()), id: \.offset) { i, value in
-                    VStack(spacing: 4) {
-                        let h = CGFloat(value) / CGFloat(maxVal) * barMaxHeight
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.brandAccent)
-                            .frame(height: max(h, 6))
-                            .animation(.easeOut, value: value)
-                        Text(RuDate.shortWeekday(at: i))
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(.secondaryLabel))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: chartHeight)
-
-            Text("Задач выполнено за последние 7 дней")
-                .font(.system(size: 13))
-                .foregroundColor(Color(.secondaryLabel))
-                .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .padding(20)
-        .background(Color(.systemBackground))
-        .cornerRadius(24)
     }
 
     // MARK: - Settings

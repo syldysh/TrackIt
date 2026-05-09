@@ -40,14 +40,14 @@ struct SchedulePickerView: View {
         ZStack(alignment: .bottom) {
             Color.clear
                 .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture { onCancel() }
+                .allowsHitTesting(false)
 
             sheetContent
                 .modalDragOffset(dragState)
                 .contentShape(Rectangle())
                 .onTapGesture { }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .ignoresSafeArea(edges: .bottom)
         .background(TabBarHider(hide: true).allowsHitTesting(false))
     }
@@ -91,7 +91,7 @@ struct SchedulePickerView: View {
             }
         }
         .frame(maxHeight: UIScreen.main.bounds.height * 0.8)
-        .background(Color(.systemBackground))
+        .background(Color(.systemBackground).onTapGesture { })
         .cornerRadius(20, corners: [.topLeft, .topRight])
     }
 
@@ -111,13 +111,9 @@ struct SchedulePickerView: View {
     }
 
     private var monthPicker: some View {
-        DatePicker("", selection: $formVM.nativeDateSelection, in: formVM.today..., displayedComponents: .date)
-            .datePickerStyle(.graphical)
-            .environment(\.locale, RuDate.locale)
-            .padding(.horizontal, 12)
-            .padding(.bottom, 16)
-            .onChange(of: formVM.nativeDateSelection) { _, val in
-                formVM.updateDateSelection(val)
+        DateSelectionCalendarView(selectedDate: $formVM.nativeDateSelection, minimumDate: formVM.today)
+            .onChange(of: formVM.nativeDateSelection) { _, value in
+                formVM.updateDateSelection(value)
             }
     }
 

@@ -2,17 +2,19 @@
 //  InboxTaskRow.swift
 //  TrackIt
 //
-//  Строка задачи во «Входящих» со свайп-действием удаления.
+//  Строка задачи во «Входящих» со свайп-действиями планирования и удаления.
 //
 
 import SwiftUI
 
 struct InboxTaskRow: View {
     let task: Task
+    let onSchedule: () -> Void
     let onDelete: () -> Void
 
     @State private var offset: CGFloat = 0
     private var isSwiping: Bool { offset != 0 }
+    private let actionThreshold: CGFloat = 80
 
     var body: some View {
         ZStack {
@@ -26,7 +28,17 @@ struct InboxTaskRow: View {
 
     @ViewBuilder
     private var swipeBackground: some View {
-        if isSwiping && offset < 0 {
+        if isSwiping && offset > 0 {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.plus").font(.system(size: 14))
+                Text("Запланировать").font(.system(size: 14, weight: .bold))
+                Spacer()
+            }
+            .foregroundColor(.white)
+            .padding(.leading, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.brandGreen)
+        } else if isSwiping && offset < 0 {
             HStack(spacing: 6) {
                 Spacer()
                 Image(systemName: "trash").font(.system(size: 14))
@@ -66,13 +78,16 @@ struct InboxTaskRow: View {
         .gesture(
             DragGesture()
                 .onChanged { v in
-                    guard v.translation.width < 0 else { return }
-                    withAnimation(.dragFollow) { offset = v.translation.width * 0.4 }
+                    guard abs(v.translation.width) > abs(v.translation.height) else { return }
+                    withAnimation(.dragFollow) { offset = v.translation.width }
                 }
                 .onEnded { v in
-                    if v.translation.width < -80 {
-                        withAnimation(.smoothSpring) { onDelete() }
-                        offset = 0
+                    if v.translation.width > actionThreshold {
+                        withAnimation(.smoothSpring) { offset = 0 }
+                        onSchedule()
+                    } else if v.translation.width < -actionThreshold {
+                        withAnimation(.smoothSpring) { offset = 0 }
+                        onDelete()
                     } else {
                         withAnimation(.smoothSpring) { offset = 0 }
                     }
