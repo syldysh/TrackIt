@@ -25,25 +25,51 @@ final class StatisticsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    var completedCount: Int { repository.completedCount }
+    var statistics: StatisticsSnapshot {
+        StatisticsService.snapshot(tasks: repository.tasks)
+    }
+
+    var completedCount: Int {
+        statistics.progress.completedCount
+    }
 
     var streakDays: Int {
-        StatisticsService.streakDays(tasks: repository.tasks)
+        statistics.streak.days
     }
 
     var completionRate: Int {
-        StatisticsService.completionRate(tasks: repository.tasks)
+        statistics.progress.completionRate
+    }
+
+    var periodTitle: String {
+        "За последние 7 дней"
+    }
+
+    var progressSupportText: String {
+        let progress = statistics.progress
+        guard progress.totalCount > 0 else { return "Запланируйте задачу, чтобы увидеть прогресс." }
+        if progress.completionRate >= 80 { return "Хороший темп! Большая часть задач закрыта." }
+        if progress.completionRate >= 50 { return "Хороший прогресс за неделю." }
+        return "Начните выполнять задачи, и прогресс будет расти."
     }
 
     func weeklyActivity() -> [Int] {
-        StatisticsService.weeklyActivity(tasks: repository.tasks)
+        statistics.trendDays.map(\.completedCount)
     }
 
     var completedTasks: [Task] {
-        StatisticsService.completedTasks(tasks: repository.tasks)
+        statistics.completedTasks
     }
 
     var streakSupportText: String {
-        streakDays > 0 ? "Молодец! Продолжай дальше 🔥" : "Начните серию сегодня — это хороший момент"
+        streakDays > 0 ? "Страйк держится! Выполните задачу на сегодня, чтобы не потерять его." : "Выполните задачу на сегодня, чтобы начать страйк."
+    }
+
+    var trendDays: [StatisticsDailySummary] {
+        statistics.trendDays
+    }
+
+    var bestProductivityDay: StatisticsDailySummary? {
+        statistics.bestProductivityDay
     }
 }
