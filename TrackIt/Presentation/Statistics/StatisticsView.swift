@@ -54,6 +54,7 @@ struct StatisticsView: View {
                     .padding(16)
                 }
             }
+            .allowsHitTesting(activeDetail == nil && selectedSettingsDestination == nil)
 
             progressModalOverlay
             settingsModalOverlay
@@ -141,7 +142,8 @@ struct StatisticsView: View {
                 progressSupportText: vm.progressSupportText,
                 streakSupportText: vm.streakSupportText,
                 dragState: progressModalDragState,
-                onDismiss: dismissModals
+                onDismiss: dismissModals,
+                onChangeDestination: changeActiveDetail
             )
             .frame(maxHeight: UIScreen.main.bounds.height * 0.76)
             .padding(.horizontal, modalHorizontalPadding)
@@ -179,5 +181,9 @@ struct StatisticsView: View {
     private func openDetail(_ destination: StatisticsDetailDestination) {
         progressModalDragState.reset()
         withAnimation(.sheetSpring) { activeDetail = destination }
+    }
+
+    private func changeActiveDetail(_ destination: StatisticsDetailDestination) {
+        withAnimation(.snappySpring) { activeDetail = destination }
     }
 }

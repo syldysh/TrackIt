@@ -15,22 +15,29 @@ struct StatisticsDetailModalView: View {
     let streakSupportText: String
     @ObservedObject var dragState: ModalDragState
     let onDismiss: () -> Void
+    let onChangeDestination: (StatisticsDetailDestination) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            ModalDragHandle(dragState: dragState, onDismiss: onDismiss) {
+            ModalDragHandle(dragState: dragState, showsDragHandle: false, onDismiss: onDismiss) {
                 header
             }
             Divider()
             ScrollView {
                 detailContent
                     .padding(20)
+                    .id(destination.id)
+                    .transition(.opacity)
             }
         }
         .background(Color(.systemBackground))
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.15), radius: 20, y: 8)
+        .contentShape(Rectangle())
+        .onTapGesture { }
+        .simultaneousGesture(horizontalSwipeGesture)
         .modalDragOffset(dragState)
+        .animation(.snappySpring, value: destination.id)
     }
 
     private var header: some View {
@@ -55,6 +62,21 @@ struct StatisticsDetailModalView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    private var horizontalSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > 72, abs(horizontal) > abs(vertical) * 1.25 else { return }
+
+                if horizontal < 0, let next = destination.next {
+                    onChangeDestination(next)
+                } else if horizontal > 0, let previous = destination.previous {
+                    onChangeDestination(previous)
+                }
+            }
     }
 
     @ViewBuilder

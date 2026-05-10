@@ -7,11 +7,18 @@
 
 import SwiftUI
 
-enum StatisticsDetailDestination: Identifiable {
+enum StatisticsDetailDestination: Identifiable, Equatable {
     case progress
     case completedTasks
     case streak
     case productivityTrend
+
+    static let orderedCases: [StatisticsDetailDestination] = [
+        .progress,
+        .completedTasks,
+        .streak,
+        .productivityTrend
+    ]
 
     var id: String {
         switch self {
@@ -47,5 +54,16 @@ enum StatisticsDetailDestination: Identifiable {
         case .streak: return .brandOrange
         case .productivityTrend: return .brandPurple
         }
+    }
+
+    var previous: StatisticsDetailDestination? {
+        guard let index = Self.orderedCases.firstIndex(of: self), index > 0 else { return nil }
+        return Self.orderedCases[index - 1]
+    }
+
+    var next: StatisticsDetailDestination? {
+        guard let index = Self.orderedCases.firstIndex(of: self),
+              index < Self.orderedCases.count - 1 else { return nil }
+        return Self.orderedCases[index + 1]
     }
 }
