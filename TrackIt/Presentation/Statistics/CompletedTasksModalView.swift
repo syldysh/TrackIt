@@ -2,85 +2,62 @@
 //  CompletedTasksModalView.swift
 //  TrackIt
 //
-//  Модальное окно со списком выполненных задач.
-//  Открывается с карточки прогресса и показывает empty state, если задач пока нет.
+//  Подробности карточки выполненных задач.
 //
 
 import SwiftUI
 
-struct CompletedTasksModalView: View {
+struct StatisticsCompletedTasksDetailView: View {
     let tasks: [Task]
-    @ObservedObject var dragState: ModalDragState
-    let onDismiss: () -> Void
+    let periodTitle: String
 
     var body: some View {
-        VStack(spacing: 0) {
-            dragArea
-            Divider()
-            content
-        }
-        .background(Color(.systemBackground))
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.15), radius: 20, y: 8)
-        .modalDragOffset(dragState)
-    }
-
-    private var dragArea: some View {
-        ModalDragHandle(dragState: dragState, onDismiss: onDismiss) {
-            header
-        }
-    }
-
-    private var header: some View {
-        HStack {
-            Text("Выполненные задачи")
-                .font(.system(size: 17, weight: .semibold))
-            Spacer()
-            Text("\(tasks.count) \(RuDate.pluralTasks(tasks.count))")
-                .font(.system(size: 13))
-                .foregroundColor(Color(.secondaryLabel))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if tasks.isEmpty {
-            emptyState
-        } else {
-            ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
+            summary
+            if tasks.isEmpty {
+                emptyState
+            } else {
                 LazyVStack(spacing: 8) {
                     ForEach(tasks) { task in
                         CompletedTaskSummaryRow(task: task)
                     }
                 }
-                .padding(16)
             }
         }
     }
 
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("\(tasks.count) \(RuDate.pluralTasks(tasks.count))")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(Color(.label))
+            Text("Выполнено \(periodTitle.lowercased()).")
+                .font(.system(size: 14))
+                .foregroundColor(Color(.secondaryLabel))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.brandGreen.opacity(0.1))
+        .cornerRadius(16)
+    }
+
     private var emptyState: some View {
         VStack(spacing: 12) {
-            Circle()
-                .fill(Color(.systemGray6))
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 28))
+                .foregroundColor(Color(.systemGray3))
                 .frame(width: 64, height: 64)
-                .overlay(
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 26))
-                        .foregroundColor(Color(.systemGray3))
-                )
+                .background(Color(.systemGray6))
+                .clipShape(Circle())
             Text("Пока нет выполненных задач")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(Color(.label))
-            Text("Завершите задачу, и она появится здесь.")
+            Text("Выполните задачу, и она появится в этом списке.")
                 .font(.system(size: 14))
                 .foregroundColor(Color(.secondaryLabel))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 36)
+        .padding(.vertical, 20)
     }
 }
 

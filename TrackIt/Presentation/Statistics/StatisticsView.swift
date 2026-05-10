@@ -9,8 +9,7 @@ import SwiftUI
 
 struct StatisticsView: View {
     @EnvironmentObject var vm: StatisticsViewModel
-    @State private var showCompletedTasks = false
-    @State private var showStreakDetails = false
+    @State private var activeDetail: StatisticsDetailDestination? = nil
     @State private var selectedSettingsDestination: SettingsDestination? = nil
     @StateObject private var progressModalDragState = ModalDragState()
     @StateObject private var settingsModalDragState = ModalDragState()
@@ -39,12 +38,15 @@ struct StatisticsView: View {
                     VStack(spacing: 16) {
                         StatisticsCompletionRingView(
                             completionRate: vm.completionRate,
-                            isNarrowScreen: isNarrowScreen
+                            supportText: vm.progressSupportText,
+                            isNarrowScreen: isNarrowScreen,
+                            action: { openDetail(.progress) }
                         )
                         statCards
                         StatisticsActivityChartView(
-                            activity: vm.weeklyActivity(),
-                            isNarrowScreen: isNarrowScreen
+                            days: vm.trendDays,
+                            isNarrowScreen: isNarrowScreen,
+                            action: { openDetail(.productivityTrend) }
                         )
                         settingsSection
                         appInfo
@@ -56,7 +58,7 @@ struct StatisticsView: View {
             progressModalOverlay
             settingsModalOverlay
         }
-        .background(TabBarHider(hide: showCompletedTasks || showStreakDetails || selectedSettingsDestination != nil))
+        .background(TabBarHider(hide: activeDetail != nil || selectedSettingsDestination != nil))
     }
 
     // MARK: - Stat Cards
@@ -80,10 +82,7 @@ struct StatisticsView: View {
             iconColor: Color(.systemGreen),
             value: "\(vm.completedCount)",
             label: "Задач выполнено",
-            action: {
-                progressModalDragState.reset()
-                withAnimation(.sheetSpring) { showCompletedTasks = true }
-            }
+            action: { openDetail(.completedTasks) }
         )
     }
 
@@ -93,10 +92,7 @@ struct StatisticsView: View {
             iconColor: Color(.systemOrange),
             value: "\(vm.streakDays)",
             label: "Дней подряд",
-            action: {
-                progressModalDragState.reset()
-                withAnimation(.sheetSpring) { showStreakDetails = true }
-            }
+            action: { openDetail(.streak) }
         )
     }
 
@@ -118,7 +114,7 @@ struct StatisticsView: View {
             Text("TrackIt Version 1.0.0")
                 .font(.system(size: 13))
                 .foregroundColor(Color(.secondaryLabel))
-            Text("Made with love")
+            Text("Made with love <3")
                 .font(.system(size: 13))
                 .foregroundColor(Color(.tertiaryLabel))
         }
@@ -129,7 +125,7 @@ struct StatisticsView: View {
 
     @ViewBuilder
     private var progressModalOverlay: some View {
-        if showCompletedTasks || showStreakDetails {
+        if activeDetail != nil {
             ModalDimBackground(dragState: progressModalDragState, baseOpacity: 0.3) {
                 dismissModals()
             }
@@ -137,24 +133,17 @@ struct StatisticsView: View {
                 .zIndex(10)
         }
 
-        if showCompletedTasks {
-            CompletedTasksModalView(tasks: vm.completedTasks, dragState: progressModalDragState) {
-                dismissModals()
-            }
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.74)
-            .padding(.horizontal, modalHorizontalPadding)
-            .transition(.scale(scale: 0.92).combined(with: .opacity))
-            .zIndex(11)
-        }
-
-        if showStreakDetails {
-            StreakModalView(
-                streakDays: vm.streakDays,
-                supportText: vm.streakSupportText,
+        if let activeDetail {
+            StatisticsDetailModalView(
+                destination: activeDetail,
+                snapshot: vm.statistics,
+                periodTitle: vm.periodTitle,
+                progressSupportText: vm.progressSupportText,
+                streakSupportText: vm.streakSupportText,
                 dragState: progressModalDragState,
                 onDismiss: dismissModals
             )
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.72)
+            .frame(maxHeight: UIScreen.main.bounds.height * 0.76)
             .padding(.horizontal, modalHorizontalPadding)
             .transition(.scale(scale: 0.92).combined(with: .opacity))
             .zIndex(11)
@@ -182,9 +171,13 @@ struct StatisticsView: View {
 
     private func dismissModals() {
         withAnimation(.sheetSpring) {
-            showCompletedTasks = false
-            showStreakDetails = false
+            activeDetail = nil
             selectedSettingsDestination = nil
         }
+    }
+
+    private func openDetail(_ destination: StatisticsDetailDestination) {
+        progressModalDragState.reset()
+        withAnimation(.sheetSpring) { activeDetail = destination }
     }
 }
