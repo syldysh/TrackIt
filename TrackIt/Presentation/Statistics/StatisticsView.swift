@@ -145,7 +145,6 @@ struct StatisticsView: View {
                 onDismiss: dismissModals,
                 onChangeDestination: changeActiveDetail
             )
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.76)
             .padding(.horizontal, modalHorizontalPadding)
             .transition(.scale(scale: 0.92).combined(with: .opacity))
             .zIndex(11)
@@ -164,7 +163,6 @@ struct StatisticsView: View {
             SettingsDetailModalView(destination: destination, dragState: settingsModalDragState) {
                 dismissModals()
             }
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.8)
             .padding(.horizontal, modalHorizontalPadding)
             .transition(.scale(scale: 0.92).combined(with: .opacity))
             .zIndex(21)

@@ -17,13 +17,17 @@ struct StatisticsDetailModalView: View {
     let onDismiss: () -> Void
     let onChangeDestination: (StatisticsDetailDestination) -> Void
 
+    private var maxContentHeight: CGFloat {
+        UIScreen.main.bounds.height * 0.62
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ModalDragHandle(dragState: dragState, showsDragHandle: false, onDismiss: onDismiss) {
                 header
             }
             Divider()
-            ScrollView {
+            AdaptiveSheetContent(maxHeight: maxContentHeight) {
                 detailContent
                     .padding(20)
                     .id(destination.id)
