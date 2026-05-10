@@ -9,24 +9,30 @@ import SwiftUI
 
 struct StatisticsCompletionRingView: View {
     let completionRate: Int
+    let supportText: String
     let isNarrowScreen: Bool
+    let action: () -> Void
 
     private var ringSize: CGFloat { isNarrowScreen ? 156 : 180 }
     private var ringLineWidth: CGFloat { isNarrowScreen ? 12 : 14 }
 
     var body: some View {
-        VStack(spacing: 12) {
-            ring
-            Text(supportText)
-                .font(.system(size: 15))
-                .multilineTextAlignment(.center)
-                .foregroundColor(Color(.label))
-                .fixedSize(horizontal: false, vertical: true)
+        Button(action: action) {
+            VStack(spacing: 12) {
+                ring
+                Text(supportText)
+                    .font(.system(size: 15))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(Color(.label))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(isNarrowScreen ? 20 : 28)
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemBackground))
+            .cornerRadius(24)
         }
-        .padding(isNarrowScreen ? 20 : 28)
-        .frame(maxWidth: .infinity)
-        .background(Color(.systemBackground))
-        .cornerRadius(24)
+        .buttonStyle(StatisticsCardButtonStyle())
+        .accessibilityLabel("Прогресс \(completionRate) процентов")
     }
 
     private var ring: some View {
@@ -51,9 +57,13 @@ struct StatisticsCompletionRingView: View {
         }
     }
 
-    private var supportText: String {
-        completionRate >= 70
-        ? "Отличная работа! Вы опережаете свою недельную цель"
-        : "Продолжайте — вы на верном пути!"
+}
+
+struct StatisticsCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .animation(.snappySpring, value: configuration.isPressed)
     }
 }

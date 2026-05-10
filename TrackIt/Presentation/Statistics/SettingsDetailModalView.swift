@@ -13,11 +13,15 @@ struct SettingsDetailModalView: View {
     @ObservedObject var dragState: ModalDragState
     let onDismiss: () -> Void
 
+    private var maxContentHeight: CGFloat {
+        UIScreen.main.bounds.height * 0.68
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             dragArea
             Divider()
-            ScrollView {
+            AdaptiveSheetContent(maxHeight: maxContentHeight) {
                 content
                     .padding(16)
             }

@@ -123,16 +123,31 @@ struct ModalDimBackground: View {
 
 struct ModalDragHandle<Content: View>: View {
     @ObservedObject var dragState: ModalDragState
+    let showsDragHandle: Bool
     let onDismiss: () -> Void
     @ViewBuilder let content: () -> Content
 
+    init(
+        dragState: ModalDragState,
+        showsDragHandle: Bool = true,
+        onDismiss: @escaping () -> Void,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.dragState = dragState
+        self.showsDragHandle = showsDragHandle
+        self.onDismiss = onDismiss
+        self.content = content
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(.systemGray4))
-                .frame(width: 40, height: 4)
-                .padding(.top, 10)
-                .padding(.bottom, 4)
+            if showsDragHandle {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color(.systemGray4))
+                    .frame(width: 40, height: 4)
+                    .padding(.top, 10)
+                    .padding(.bottom, 4)
+            }
 
             content()
         }

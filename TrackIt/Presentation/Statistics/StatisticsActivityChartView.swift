@@ -8,25 +8,29 @@
 import SwiftUI
 
 struct StatisticsActivityChartView: View {
-    let activity: [Int]
+    let days: [StatisticsDailySummary]
     let isNarrowScreen: Bool
+    let action: () -> Void
 
-    private var chartHeight: CGFloat { isNarrowScreen ? 140 : 160 }
-    private var barMaxHeight: CGFloat { isNarrowScreen ? 118 : 140 }
-    private var maxValue: Int { max(activity.max() ?? 1, 1) }
+    private var barMaxHeight: CGFloat { isNarrowScreen ? 92 : 112 }
+    private var maxValue: Int { max(days.map(\.completedCount).max() ?? 1, 1) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
-            bars
-            Text("Задач выполнено за последние 7 дней")
-                .font(.system(size: 13))
-                .foregroundColor(Color(.secondaryLabel))
-                .frame(maxWidth: .infinity, alignment: .center)
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                chart
+                Text("Задач выполнено за последние 7 дней")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(.secondaryLabel))
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(24)
         }
-        .padding(20)
-        .background(Color(.systemBackground))
-        .cornerRadius(24)
+        .buttonStyle(StatisticsCardButtonStyle())
+        .accessibilityLabel("Тренд продуктивности")
     }
 
     private var header: some View {
@@ -46,22 +50,38 @@ struct StatisticsActivityChartView: View {
         }
     }
 
-    private var bars: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            ForEach(Array(activity.enumerated()), id: \.offset) { index, value in
-                VStack(spacing: 4) {
-                    let height = CGFloat(value) / CGFloat(maxValue) * barMaxHeight
+    private var chart: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(days) { day in
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.brandAccent)
-                        .frame(height: max(height, 6))
-                        .animation(.easeOut, value: value)
-                    Text(RuDate.shortWeekday(at: index))
+                        .fill(barColor(for: day))
+                        .frame(height: barHeight(for: day))
+                        .frame(maxWidth: .infinity)
+                        .animation(.easeOut(duration: 0.25), value: day.completedCount)
+                }
+            }
+            .frame(height: barMaxHeight, alignment: .bottom)
+
+            HStack(spacing: 8) {
+                ForEach(days) { day in
+                    Text(RuDate.shortWeekday(at: RuDate.isoWeekday(day.date)))
                         .font(.system(size: 11))
                         .foregroundColor(Color(.secondaryLabel))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
             }
+            .frame(height: 16)
         }
-        .frame(height: chartHeight)
+    }
+
+    private func barHeight(for day: StatisticsDailySummary) -> CGFloat {
+        guard day.completedCount > 0 else { return 6 }
+        return max(CGFloat(day.completedCount) / CGFloat(maxValue) * barMaxHeight, 10)
+    }
+
+    private func barColor(for day: StatisticsDailySummary) -> Color {
+        day.completedCount > 0 ? .brandAccent : Color(.systemGray5)
     }
 }
