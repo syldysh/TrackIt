@@ -39,10 +39,20 @@ struct SettingsSectionView: View {
 
     private func settingsRow(_ destination: SettingsDestination) -> some View {
         NavigationLink {
-            StatisticsSettingsPlaceholderView(destination: destination)
+            destinationView(for: destination)
         } label: {
             StatisticsSettingsRow(destination: destination)
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func destinationView(for destination: SettingsDestination) -> some View {
+        switch destination {
+        case .notifications:
+            StatisticsNotificationSettingsView()
+        case .help, .privacy, .about:
+            StatisticsSettingsPlaceholderView(destination: destination)
+        }
     }
 }
