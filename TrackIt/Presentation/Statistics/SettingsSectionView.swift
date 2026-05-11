@@ -3,14 +3,12 @@
 //  TrackIt
 //
 //  Секция настроек на экране прогресса.
-//  Собирает пункты меню и передает выбранный пункт наружу.
+//  Собирает пункты меню и открывает отдельные экраны через навигацию.
 //
 
 import SwiftUI
 
 struct SettingsSectionView: View {
-    let onSelect: (SettingsDestination) -> Void
-
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             settingsGroup(title: "Настройки") {
@@ -40,45 +38,11 @@ struct SettingsSectionView: View {
     }
 
     private func settingsRow(_ destination: SettingsDestination) -> some View {
-        Button {
-            onSelect(destination)
+        NavigationLink {
+            StatisticsSettingsPlaceholderView(destination: destination)
         } label: {
-            HStack(spacing: 12) {
-                settingIcon(destination.icon)
-                Text(destination.title)
-                    .font(.system(size: 16))
-                    .foregroundColor(Color(.label))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(.tertiaryLabel))
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-            .contentShape(Rectangle())
+            StatisticsSettingsRow(destination: destination)
         }
-        .buttonStyle(SettingsRowButtonStyle())
-    }
-
-    private func settingIcon(_ name: String) -> some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(Color.brandAccent)
-            .frame(width: 32, height: 32)
-            .overlay(
-                Image(systemName: name)
-                    .font(.system(size: 15))
-                    .foregroundColor(.white)
-            )
-    }
-}
-
-private struct SettingsRowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? Color(.systemGray6) : Color.clear)
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .animation(.snappySpring, value: configuration.isPressed)
+        .buttonStyle(.plain)
     }
 }
