@@ -72,33 +72,6 @@ struct HelpFeedbackContent: View {
     }
 }
 
-struct PrivacyPolicyContent: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            settingsInfoCard(
-                icon: "lock.shield.fill",
-                title: "Локальное хранение",
-                text: "TrackIt хранит задачи и прогресс на устройстве через локальное хранилище приложения."
-            )
-            settingsInfoCard(
-                icon: "person.crop.circle.badge.checkmark",
-                title: "Персональные данные",
-                text: "Приложение не просит аккаунт, не собирает профиль пользователя и не отправляет задачи на внешний сервер."
-            )
-            settingsInfoCard(
-                icon: "bell.fill",
-                title: "Уведомления",
-                text: "Если уведомления будут включены, iOS запросит отдельное разрешение. Его можно изменить в системных настройках."
-            )
-            settingsInfoCard(
-                icon: "doc.text.fill",
-                title: "Политика",
-                text: "Эта политика описывает текущую локальную обработку данных в TrackIt. Перед публикацией в App Store текст можно расширить юридическими деталями проекта."
-            )
-        }
-    }
-}
-
 struct AboutAppContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

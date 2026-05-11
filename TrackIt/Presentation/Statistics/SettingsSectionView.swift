@@ -17,8 +17,6 @@ struct SettingsSectionView: View {
             settingsGroup(title: "Поддержка") {
                 settingsRow(.help)
                 Divider().padding(.leading, 52)
-                settingsRow(.privacy)
-                Divider().padding(.leading, 52)
                 settingsRow(.about)
             }
         }
@@ -53,7 +51,7 @@ struct SettingsSectionView: View {
             StatisticsNotificationSettingsView()
         case .help:
             StatisticsHelpFeedbackView()
-        case .privacy, .about:
+        case .about:
             StatisticsSettingsPlaceholderView(destination: destination)
         }
     }

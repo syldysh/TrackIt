@@ -72,8 +72,6 @@ struct SettingsDetailModalView: View {
             NotificationSettingsContent()
         case .help:
             HelpFeedbackContent()
-        case .privacy:
-            PrivacyPolicyContent()
         case .about:
             AboutAppContent()
         }
