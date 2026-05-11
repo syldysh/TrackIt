@@ -62,7 +62,7 @@ final class StatisticsViewModel: ObservableObject {
     }
 
     var streakSupportText: String {
-        streakDays > 0 ? "Страйк держится! Выполните задачу на сегодня, чтобы не потерять его." : "Выполните задачу на сегодня, чтобы начать страйк."
+        streakDays > 0 ? "Страйк держится! Выполняйте задачи, чтобы не потерять его." : "Выполните задачу на сегодня, чтобы начать страйк."
     }
 
     var trendDays: [StatisticsDailySummary] {

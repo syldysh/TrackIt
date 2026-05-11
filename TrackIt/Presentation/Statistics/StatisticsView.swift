@@ -10,9 +10,7 @@ import SwiftUI
 struct StatisticsView: View {
     @EnvironmentObject var vm: StatisticsViewModel
     @State private var activeDetail: StatisticsDetailDestination? = nil
-    @State private var selectedSettingsDestination: SettingsDestination? = nil
     @StateObject private var progressModalDragState = ModalDragState()
-    @StateObject private var settingsModalDragState = ModalDragState()
 
     private var isNarrowScreen: Bool { UIScreen.main.bounds.width <= 340 }
     private var modalHorizontalPadding: CGFloat { isNarrowScreen ? 16 : 24 }
@@ -43,12 +41,11 @@ struct StatisticsView: View {
                 .navigationTitle("Ваш прогресс")
                 .navigationBarTitleDisplayMode(.large)
             }
-            .allowsHitTesting(activeDetail == nil && selectedSettingsDestination == nil)
+            .allowsHitTesting(activeDetail == nil)
 
             progressModalOverlay
-            settingsModalOverlay
         }
-        .background(TabBarHider(hide: activeDetail != nil || selectedSettingsDestination != nil))
+        .background(TabBarHider(hide: activeDetail != nil))
     }
 
     // MARK: - Stat Cards
@@ -89,12 +86,7 @@ struct StatisticsView: View {
     // MARK: - Settings
 
     private var settingsSection: some View {
-        SettingsSectionView { destination in
-            settingsModalDragState.reset()
-            withAnimation(.sheetSpring) {
-                selectedSettingsDestination = destination
-            }
-        }
+        SettingsSectionView()
     }
 
     // MARK: - App Info
@@ -140,28 +132,9 @@ struct StatisticsView: View {
         }
     }
 
-    @ViewBuilder
-    private var settingsModalOverlay: some View {
-        if let destination = selectedSettingsDestination {
-            ModalDimBackground(dragState: settingsModalDragState, baseOpacity: 0.3) {
-                dismissModals()
-            }
-                .transition(.opacity)
-                .zIndex(20)
-
-            SettingsDetailModalView(destination: destination, dragState: settingsModalDragState) {
-                dismissModals()
-            }
-            .padding(.horizontal, modalHorizontalPadding)
-            .transition(.scale(scale: 0.92).combined(with: .opacity))
-            .zIndex(21)
-        }
-    }
-
     private func dismissModals() {
         withAnimation(.sheetSpring) {
             activeDetail = nil
-            selectedSettingsDestination = nil
         }
     }
 
