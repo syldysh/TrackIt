@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct StatisticsAboutAppView: View {
     private let appInfo = AppInfoProvider.current()
@@ -29,13 +30,7 @@ struct StatisticsAboutAppView: View {
             title: appInfo.name,
             subtitle: "Задачи, календарь, планирование и прогресс в одном приложении."
         ) {
-            Image("LaunchLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 72, height: 72)
-                .padding(10)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(20)
+            AppIconView()
         }
     }
 
@@ -56,9 +51,21 @@ struct StatisticsAboutAppView: View {
         StatisticsSettingsGroup(title: "Информация") {
             AboutInfoRow(icon: "tag.fill", title: "Версия", value: appInfo.version)
             Divider().padding(.leading, AboutLayout.dividerLeading)
-            AboutInfoRow(icon: "hammer.fill", title: "Build", value: appInfo.build)
-            Divider().padding(.leading, AboutLayout.dividerLeading)
             AboutInfoRow(icon: "person.fill", title: "Автор", value: appInfo.author)
+        }
+    }
+}
+
+private struct AppIconView: View {
+    var body: some View {
+        if let image = UIImage(named: "AppIcon") ?? UIImage(named: "LaunchLogo") {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 92, height: 92)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        } else {
+            StatisticsSettingsIcon(systemName: "checkmark.square", size: 92, fontSize: 42)
         }
     }
 }
