@@ -51,7 +51,9 @@ struct SettingsSectionView: View {
         switch destination {
         case .notifications:
             StatisticsNotificationSettingsView()
-        case .help, .privacy, .about:
+        case .help:
+            StatisticsHelpFeedbackView()
+        case .privacy, .about:
             StatisticsSettingsPlaceholderView(destination: destination)
         }
     }
