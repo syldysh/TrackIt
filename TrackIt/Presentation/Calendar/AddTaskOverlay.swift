@@ -48,6 +48,8 @@ struct AddTaskOverlay: View {
         formVM.addDateMode == 2 || formVM.showTimePicker || formVM.showDurationPicker
     }
 
+    private let dateCalendarTopPadding: CGFloat = 16
+
     private var dragArea: some View {
         ModalDragHandle(dragState: dragState, onDismiss: dismiss) {
             titleBar
@@ -135,6 +137,7 @@ struct AddTaskOverlay: View {
 
             if formVM.addDateMode == 2 {
                 DateSelectionCalendarView(selectedDate: $formVM.newDate, minimumDate: RuDate.startOfDay(Date()))
+                    .padding(.top, dateCalendarTopPadding)
                     .background(Color(.systemGray6))
                     .cornerRadius(16)
                     .padding(.horizontal, 20)
