@@ -25,27 +25,16 @@ struct StatisticsNotificationSettingsView: View {
     }
 
     private var introCard: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            settingsIcon("bell.fill", size: 62, fontSize: 28)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Уведомления")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundColor(Color(.label))
-                Text("Уведомления помогут не забывать о задачах и отслеживать прогресс.")
-                    .font(.system(size: 18))
-                    .foregroundColor(Color(.secondaryLabel))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        StatisticsSettingsIntroCard(
+            title: "Уведомления",
+            subtitle: "Уведомления помогут не забывать о задачах и отслеживать прогресс."
+        ) {
+            StatisticsSettingsIcon(systemName: "bell.fill")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(22)
-        .background(Color(.systemBackground))
-        .cornerRadius(24)
     }
 
     private var notificationTypesSection: some View {
-        settingsGroup(title: "Типы уведомлений") {
+        StatisticsSettingsGroup(title: "Типы уведомлений") {
             NotificationSettingToggleRow(
                 icon: "checklist",
                 title: "Напоминания о задачах",
@@ -66,28 +55,6 @@ struct StatisticsNotificationSettingsView: View {
                 )
             )
         }
-    }
-
-    private func settingsGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .sectionHeaderStyle()
-                .padding(.leading, 4)
-            VStack(spacing: 0) {
-                content()
-            }
-            .background(Color(.systemBackground))
-            .cornerRadius(18)
-        }
-    }
-
-    private func settingsIcon(_ name: String, size: CGFloat, fontSize: CGFloat) -> some View {
-        Image(systemName: name)
-            .font(.system(size: fontSize))
-            .foregroundColor(.white)
-            .frame(width: size, height: size)
-            .background(Color.brandAccent)
-            .cornerRadius(size * 0.26)
     }
 
     private func permissionAlert(_ alert: NotificationPermissionAlert) -> Alert {
@@ -118,7 +85,7 @@ private struct NotificationSettingToggleRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            rowIcon(icon)
+            StatisticsSettingsIcon(systemName: icon, size: 34, fontSize: 15)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
@@ -145,13 +112,4 @@ private struct NotificationSettingToggleRow: View {
             .labelsHidden()
             .frame(width: 54, alignment: .trailing)
     }
-}
-
-private func rowIcon(_ name: String) -> some View {
-    Image(systemName: name)
-        .font(.system(size: 15))
-        .foregroundColor(.white)
-        .frame(width: 34, height: 34)
-        .background(Color.brandAccent)
-        .cornerRadius(9)
 }

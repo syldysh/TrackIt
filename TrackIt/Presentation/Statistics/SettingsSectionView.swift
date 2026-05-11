@@ -11,27 +11,14 @@ import SwiftUI
 struct SettingsSectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            settingsGroup(title: "Настройки") {
+            StatisticsSettingsGroup(title: "Настройки") {
                 settingsRow(.notifications)
             }
-            settingsGroup(title: "Поддержка") {
+            StatisticsSettingsGroup(title: "Поддержка") {
                 settingsRow(.help)
                 Divider().padding(.leading, 52)
                 settingsRow(.about)
             }
-        }
-    }
-
-    private func settingsGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .sectionHeaderStyle()
-                .padding(.leading, 4)
-            VStack(spacing: 0) {
-                content()
-            }
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
         }
     }
 
@@ -52,7 +39,7 @@ struct SettingsSectionView: View {
         case .help:
             StatisticsHelpFeedbackView()
         case .about:
-            StatisticsSettingsPlaceholderView(destination: destination)
+            StatisticsAboutAppView()
         }
     }
 }

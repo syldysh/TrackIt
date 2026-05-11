@@ -32,27 +32,16 @@ struct StatisticsHelpFeedbackView: View {
     }
 
     private var introCard: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            rowIcon("questionmark.circle.fill", size: 62, fontSize: 28)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Помощь и обратная связь")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundColor(Color(.label))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Здесь собраны ответы на частые вопросы и возможность оставить обратную связь.")
-                    .font(.system(size: 18))
-                    .foregroundColor(Color(.secondaryLabel))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        StatisticsSettingsIntroCard(
+            title: "Помощь и обратная связь",
+            subtitle: "Здесь собраны ответы на частые вопросы и возможность оставить обратную связь."
+        ) {
+            StatisticsSettingsIcon(systemName: "questionmark.circle.fill")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(22)
-        .background(Color(.systemBackground))
-        .cornerRadius(24)
     }
 
     private var faqSection: some View {
-        settingsGroup(title: "Частые вопросы") {
+        StatisticsSettingsGroup(title: "Частые вопросы") {
             ForEach(HelpFAQ.items) { item in
                 FAQDisclosureRow(
                     item: item,
@@ -69,7 +58,7 @@ struct StatisticsHelpFeedbackView: View {
     }
 
     private var feedbackSection: some View {
-        settingsGroup(title: "Обратная связь") {
+        StatisticsSettingsGroup(title: "Обратная связь") {
             Button(action: openFeedbackEmail) {
                 HelpSettingsRow(
                     icon: "envelope.fill",
@@ -79,19 +68,6 @@ struct StatisticsHelpFeedbackView: View {
                 )
             }
             .buttonStyle(.plain)
-        }
-    }
-
-    private func settingsGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .sectionHeaderStyle()
-                .padding(.leading, 4)
-            VStack(spacing: 0) {
-                content()
-            }
-            .background(Color(.systemBackground))
-            .cornerRadius(18)
         }
     }
 
@@ -151,7 +127,7 @@ private struct HelpSettingsRow: View {
 
     var body: some View {
         HStack(alignment: rowAlignment, spacing: HelpRowLayout.iconSpacing) {
-            rowIcon(icon, size: HelpRowLayout.iconSize, fontSize: 15)
+            StatisticsSettingsIcon(systemName: icon, size: HelpRowLayout.iconSize, fontSize: 15)
                 .frame(width: HelpRowLayout.iconColumnWidth, alignment: .center)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -235,13 +211,4 @@ private enum HelpRowLayout {
     static let chevronSize: CGFloat = 18
     static let collapsedMinHeight: CGFloat = 76
     static var dividerLeading: CGFloat { rowPadding + iconColumnWidth + iconSpacing }
-}
-
-private func rowIcon(_ name: String, size: CGFloat, fontSize: CGFloat) -> some View {
-    Image(systemName: name)
-        .font(.system(size: fontSize))
-        .foregroundColor(.white)
-        .frame(width: size, height: size)
-        .background(Color.brandAccent)
-        .cornerRadius(size * 0.26)
 }

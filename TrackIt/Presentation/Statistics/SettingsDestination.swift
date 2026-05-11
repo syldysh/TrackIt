@@ -3,10 +3,8 @@
 //  TrackIt
 //
 //  Описание разделов настроек.
-//  Хранит название, иконку и текст заглушки для экранов настроек.
+//  Хранит название и иконку для строк настроек.
 //
-
-import SwiftUI
 
 enum SettingsDestination: Identifiable {
     case notifications
@@ -28,17 +26,6 @@ enum SettingsDestination: Identifiable {
         case .notifications: "bell.fill"
         case .help: "questionmark.circle.fill"
         case .about: "info.circle.fill"
-        }
-    }
-
-    var placeholderText: String {
-        switch self {
-        case .notifications:
-            "Здесь позже появятся настройки уведомлений TrackIt."
-        case .help:
-            "Здесь позже появятся помощь, ответы на вопросы и форма обратной связи."
-        case .about:
-            "Здесь позже появится информация о версии и приложении TrackIt."
         }
     }
 }
