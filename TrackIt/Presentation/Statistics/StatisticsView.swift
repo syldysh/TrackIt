@@ -19,21 +19,7 @@ struct StatisticsView: View {
 
     var body: some View {
         ZStack {
-            Color(.secondarySystemBackground).ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Ваш прогресс")
-                        .font(.system(size: 34, weight: .bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
-                .background(Color(.systemBackground))
-
+            NavigationStack {
                 ScrollView {
                     VStack(spacing: 16) {
                         StatisticsCompletionRingView(
@@ -53,6 +39,9 @@ struct StatisticsView: View {
                     }
                     .padding(16)
                 }
+                .background(Color(.secondarySystemBackground))
+                .navigationTitle("Ваш прогресс")
+                .navigationBarTitleDisplayMode(.large)
             }
             .allowsHitTesting(activeDetail == nil && selectedSettingsDestination == nil)
 

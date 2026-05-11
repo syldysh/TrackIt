@@ -65,91 +65,74 @@ struct InboxView: View {
     }
 
     private var mainContent: some View {
-        ZStack {
-            Color(.secondarySystemBackground).ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Планировщик")
-                        .font(.system(size: 34, weight: .bold))
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
-                .background(Color(.systemBackground))
-
+        NavigationStack {
+            ScrollView {
                 if vm.inboxTasks.isEmpty {
                     emptyState
                 } else {
                     taskList
                 }
             }
+            .background(Color(.secondarySystemBackground))
+            .navigationTitle("Планировщик")
+            .navigationBarTitleDisplayMode(.large)
         }
     }
 
     private var emptyState: some View {
-        GeometryReader { proxy in
-            ScrollView {
-                VStack(spacing: 16) {
-                    Spacer(minLength: 24)
-                    Button {
-                        withAnimation(.sheetSpring) { vm.showAddModal = true }
-                        inputFocused = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 28, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 72, height: 72)
-                            .background(Color.brandAccent)
-                            .clipShape(Circle())
-                    }
-                    Text("Нет задач")
-                        .font(.system(size: 28, weight: .bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                    (Text("Нажмите + чтобы добавить задачу, а\nзатем запланируйте её с помощью ")
-                        + Text(Image(systemName: "bolt.fill")).foregroundColor(.orange))
-                        .font(.system(size: 17))
-                        .foregroundColor(Color(.secondaryLabel))
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 24)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: proxy.size.height)
-                .padding(.horizontal, 24)
+        VStack(spacing: 16) {
+            Button {
+                withAnimation(.sheetSpring) { vm.showAddModal = true }
+                inputFocused = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 72, height: 72)
+                    .background(Color.brandAccent)
+                    .clipShape(Circle())
             }
+            Text("Нет задач")
+                .font(.system(size: 28, weight: .bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+            (Text("Нажмите + чтобы добавить задачу, а\nзатем запланируйте её с помощью ")
+                + Text(Image(systemName: "bolt.fill")).foregroundColor(.orange))
+                .font(.system(size: 17))
+                .foregroundColor(Color(.secondaryLabel))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 96)
     }
 
     private var taskList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("ЗАДАЧИ — \(vm.inboxTasks.count)")
-                    .sectionHeaderStyle()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 8)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("ЗАДАЧИ — \(vm.inboxTasks.count)")
+                .sectionHeaderStyle()
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
 
-                VStack(spacing: 0) {
-                    ForEach(vm.inboxTasks) { task in
-                        InboxTaskRow(
-                            task: task,
-                            onSchedule: { openScheduleSheet(for: task) },
-                            onDelete: { vm.delete(task) }
-                        )
-                        if task.id != vm.inboxTasks.last?.id {
-                            Divider().padding(.leading, 20)
-                        }
+            VStack(spacing: 0) {
+                ForEach(vm.inboxTasks) { task in
+                    InboxTaskRow(
+                        task: task,
+                        onSchedule: { openScheduleSheet(for: task) },
+                        onDelete: { vm.delete(task) }
+                    )
+                    if task.id != vm.inboxTasks.last?.id {
+                        Divider().padding(.leading, 20)
                     }
                 }
-                .background(Color(.systemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .padding(.horizontal, 16)
             }
-            .padding(.bottom, 100)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 16)
         }
+        .padding(.bottom, 100)
     }
 
     @ViewBuilder
