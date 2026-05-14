@@ -34,7 +34,11 @@ struct PlanningModeView: View {
                     dismiss()
                 }
 
-            PlanningSwipeArcView(direction: state.swipeArcState.direction, progress: state.swipeArcState.progress)
+            PlanningSwipeArcView(
+                direction: state.swipeArcState.direction,
+                progress: state.swipeArcState.progress,
+                opacity: state.swipeArcState.opacity
+            )
                 .ignoresSafeArea()
 
             GeometryReader { proxy in
@@ -129,6 +133,7 @@ struct PlanningModeView: View {
             }
         } else {
             withAnimation(.smoothSpring) { state.offset = .zero }
+            state.fadeHighlightImmediately()
         }
     }
 
@@ -155,8 +160,11 @@ struct PlanningModeView: View {
     }
 
     private func openSchedulerFor(_ task: Task) {
+        state.showActionHighlight(.right)
+        state.fadeHighlightAfterDelay()
         pendingTask = task
         scheduleDragState.reset()
+        withAnimation(.smoothSpring) { state.offset = .zero }
         withAnimation(.sheetSpring) { showScheduler = true }
     }
 
@@ -189,15 +197,14 @@ struct PlanningModeView: View {
     private func animateCardOut(to targetOffset: CGSize, afterFlight updateQueue: @escaping () -> Void) {
         guard !state.swipeHandled else { return }
         state.swipeHandled = true
-        withAnimation(.easeOut(duration: 0.18)) {
-            state.swipeArcIsFadingOut = true
-        }
+        state.showActionHighlight(for: targetOffset)
         withAnimation(.easeOut(duration: 0.22)) {
             state.offset = targetOffset
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
             state.finishCardExit(updateQueue)
             state.swipeHandled = false
+            state.fadeHighlightAfterDelay()
         }
     }
 }

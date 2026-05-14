@@ -17,8 +17,15 @@ enum PlanningSwipeArcDirection {
 struct PlanningSwipeArcState {
     let direction: PlanningSwipeArcDirection
     let progress: CGFloat
+    let opacity: Double
 
-    init(offset: CGSize, isFadingOut: Bool) {
+    init(direction: PlanningSwipeArcDirection, progress: CGFloat, opacity: Double) {
+        self.direction = direction
+        self.progress = min(max(progress, 0), 1)
+        self.opacity = min(max(opacity, 0), 1)
+    }
+
+    init(offset: CGSize) {
         if offset.width > 20 {
             direction = .right
         } else if offset.width < -20 {
@@ -38,7 +45,8 @@ struct PlanningSwipeArcState {
         case .none:
             rawProgress = 0
         }
-        progress = isFadingOut ? 0 : rawProgress
+        progress = rawProgress
+        opacity = direction == .none ? 0 : 1
     }
 }
 
@@ -124,6 +132,7 @@ struct PlannerSwipeArcShape: Shape {
 struct PlanningSwipeArcView: View {
     let direction: PlanningSwipeArcDirection
     let progress: CGFloat
+    let opacity: Double
 
     private var clampedProgress: CGFloat {
         min(max(progress, 0), 1)
@@ -150,7 +159,7 @@ struct PlanningSwipeArcView: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .opacity(Double(clampedProgress))
+        .opacity(opacity)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
