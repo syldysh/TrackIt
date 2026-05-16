@@ -49,7 +49,6 @@ struct SchedulePickerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .ignoresSafeArea(edges: .bottom)
-        .background(TabBarHider(hide: true).allowsHitTesting(false))
     }
 
     private var sheetContent: some View {
