@@ -57,7 +57,7 @@ struct StatisticsStreakDetailView: View {
 
     private var recentActivity: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Последние 7 дней")
+            Text("Текущая неделя")
                 .font(.system(size: 15, weight: .semibold))
             ForEach(summary.recentDays.reversed()) { day in
                 HStack {

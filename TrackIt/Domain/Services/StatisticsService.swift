@@ -50,7 +50,7 @@ struct StatisticsSnapshot: Equatable {
 enum StatisticsService {
 
     static func snapshot(tasks: [Task], referenceDate: Date = Date()) -> StatisticsSnapshot {
-        let days = lastSevenDays(endingAt: referenceDate)
+        let days = currentWeekDays(containing: referenceDate)
         let startDate = days.first ?? RuDate.startOfDay(referenceDate)
         let endDate = days.last ?? startDate
         let trendDays = days.map { dailySummary(for: $0, tasks: tasks) }
@@ -87,10 +87,10 @@ enum StatisticsService {
         return completedTasks(tasks: tasks, from: snapshot.progress.startDate, through: snapshot.progress.endDate)
     }
 
-    private static func lastSevenDays(endingAt referenceDate: Date) -> [Date] {
-        let endDate = RuDate.startOfDay(referenceDate)
+    private static func currentWeekDays(containing referenceDate: Date) -> [Date] {
+        let weekStart = RuDate.weekStart(for: referenceDate)
         return (0..<7).compactMap { offset in
-            RuDate.calendar.date(byAdding: .day, value: offset - 6, to: endDate)
+            RuDate.calendar.date(byAdding: .day, value: offset, to: weekStart)
                 .map(RuDate.startOfDay)
         }
     }
