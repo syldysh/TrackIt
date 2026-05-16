@@ -190,6 +190,14 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
     }
 
     @discardableResult
+    func updateInboxTitle(_ task: Task, title: String) -> Task? {
+        guard let item = item(for: task), item.isInbox else { return nil }
+        item.title = title
+        save()
+        return map(item)
+    }
+
+    @discardableResult
     func setTime(_ time: String?, for task: Task) -> Task? {
         guard let item = item(for: task) else { return nil }
         item.time = time

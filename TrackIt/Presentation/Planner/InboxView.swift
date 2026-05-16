@@ -13,6 +13,7 @@ struct InboxView: View {
 
     @StateObject private var addTaskDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
     @StateObject private var scheduleTaskDragState = ModalDragState(dismissDistance: 100, predictedDismissDistance: 190)
+    @StateObject private var editTaskDragState = ModalDragState()
     @State private var showPlanningMode = false
     @State private var taskToSchedule: Task?
     @FocusState private var inputFocused: Bool
@@ -53,14 +54,23 @@ struct InboxView: View {
                     scheduleTaskSheet
                         .zIndex(30)
                 }
+                InboxTaskEditorOverlayView(
+                    formVM: vm.taskEditorVM,
+                    dragState: editTaskDragState,
+                    inputFocused: $inputFocused,
+                    onDismiss: dismissTaskEditor
+                )
             }
         }
-        .background(TabBarHider(hide: vm.showAddModal || showPlanningMode || taskToSchedule != nil))
+        .background(TabBarHider(hide: vm.showAddModal || vm.taskEditorVM.showAddTask || showPlanningMode || taskToSchedule != nil))
         .onChange(of: vm.showAddModal) { _, isPresented in
             if isPresented { addTaskDragState.reset() }
         }
         .onChange(of: taskToSchedule?.id) { _, taskID in
             if taskID != nil { scheduleTaskDragState.reset() }
+        }
+        .onChange(of: vm.taskEditorVM.showAddTask) { _, isPresented in
+            if isPresented { editTaskDragState.reset() }
         }
     }
 
@@ -121,15 +131,11 @@ struct InboxView: View {
                     InboxTaskRow(
                         task: task,
                         onSchedule: { openScheduleSheet(for: task) },
-                        onDelete: { vm.delete(task) }
+                        onDelete: { vm.delete(task) },
+                        onEdit: { openTaskEditor(for: task) }
                     )
-                    if task.id != vm.inboxTasks.last?.id {
-                        Divider().padding(.leading, 20)
-                    }
                 }
             }
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
             .padding(.horizontal, 16)
         }
         .padding(.bottom, 100)
@@ -224,5 +230,15 @@ struct InboxView: View {
 
     private func dismissScheduleSheet() {
         withAnimation(.sheetSpring) { taskToSchedule = nil }
+    }
+
+    private func openTaskEditor(for task: Task) {
+        editTaskDragState.reset()
+        withAnimation(.sheetSpring) { vm.taskEditorVM.prepareEditTask(task) }
+    }
+
+    private func dismissTaskEditor() {
+        withAnimation(.sheetSpring) { vm.taskEditorVM.reset() }
+        inputFocused = false
     }
 }

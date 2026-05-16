@@ -11,6 +11,7 @@ struct InboxTaskRow: View {
     let task: Task
     let onSchedule: () -> Void
     let onDelete: () -> Void
+    let onEdit: () -> Void
 
     @State private var offset: CGFloat = 0
     private var isSwiping: Bool { offset != 0 }
@@ -22,6 +23,7 @@ struct InboxTaskRow: View {
             rowContent
         }
         .clipped()
+        .padding(.bottom, 8)
     }
 
     // MARK: - Swipe Background
@@ -38,6 +40,7 @@ struct InboxTaskRow: View {
             .padding(.leading, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.brandGreen)
+            .cornerRadius(16)
         } else if isSwiping && offset < 0 {
             HStack(spacing: 6) {
                 Spacer()
@@ -48,32 +51,24 @@ struct InboxTaskRow: View {
             .padding(.trailing, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.brandRed)
+            .cornerRadius(16)
         }
     }
 
     // MARK: - Row Content
 
     private var rowContent: some View {
-        HStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.brandAccent)
-                .frame(width: 3, height: 36)
-                .padding(.leading, 12)
-                .padding(.trailing, 10)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(task.title)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(Color(.label))
-                Text("Не запланировано")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(.tertiaryLabel))
-            }
-            Spacer()
+        TaskListItemView(
+            task: task,
+            secondaryText: nil,
+            secondaryIcon: nil,
+            secondaryIconColor: .clear,
+            showsPinnedIndicator: false,
+            onTap: onEdit,
+            showsLeadingAccessory: false
+        ) {
+            EmptyView()
         }
-        .padding(.vertical, 12)
-        .frame(minHeight: 60)
-        .background(Color(.systemBackground))
         .offset(x: offset)
         .gesture(
             DragGesture()

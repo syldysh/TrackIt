@@ -75,28 +75,17 @@ struct TaskRowView: View {
     // MARK: - Row Content
 
     private var rowContent: some View {
-        HStack(spacing: 12) {
+        TaskListItemView(
+            task: task,
+            secondaryText: timeText,
+            secondaryIcon: timeText == nil ? nil : "clock",
+            secondaryIconColor: .brandPurple,
+            showsPinnedIndicator: true,
+            onTap: onEdit,
+            showsLeadingAccessory: true
+        ) {
             checkboxButton
-            HStack(spacing: 0) {
-                titleAndTime
-                Spacer()
-                if task.pinned && !task.isCompleted {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.brandAccent)
-                        .rotationEffect(.degrees(30))
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.sheetSpring) { onEdit() }
-            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
         .offset(x: offset)
         .gesture(
             task.isCompleted ? nil :
@@ -121,40 +110,12 @@ struct TaskRowView: View {
 
     private var checkboxButton: some View {
         Button { withAnimation(.smoothSpring) { onToggle() } } label: {
-            ZStack {
-                Circle()
-                    .strokeBorder(
-                        task.isCompleted ? Color.brandGreen : Color(.systemGray4),
-                        lineWidth: 2
-                    )
-                    .frame(width: 26, height: 26)
-                    .background(task.isCompleted ? Circle().fill(Color.brandGreen) : nil)
-                if task.isCompleted {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
-                }
-            }
+            TaskCompletionIndicatorView(isCompleted: task.isCompleted)
         }
     }
 
-    private var titleAndTime: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(task.title)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(task.isCompleted ? Color(.tertiaryLabel) : Color(.label))
-                .strikethrough(task.isCompleted)
-                .lineLimit(1)
-            if let t = task.time, !t.isEmpty, !task.isCompleted {
-                HStack(spacing: 3) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 10))
-                        .foregroundColor(.brandPurple)
-                    Text(t)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(.secondaryLabel))
-                }
-            }
-        }
+    private var timeText: String? {
+        guard let time = task.time, !time.isEmpty, !task.isCompleted else { return nil }
+        return time
     }
 }

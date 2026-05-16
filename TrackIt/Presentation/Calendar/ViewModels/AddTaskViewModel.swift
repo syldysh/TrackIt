@@ -59,6 +59,10 @@ final class AddTaskViewModel: ObservableObject {
         showTimePicker
     }
 
+    var isEditingInboxTask: Bool {
+        editingTask?.isInbox == true
+    }
+
     // MARK: - Открыть форму (новая задача)
 
     func prepareAddTask(selectedDate: Date) {
@@ -122,6 +126,20 @@ final class AddTaskViewModel: ObservableObject {
         editingTask = task
         newTitle = task.title
 
+        guard !task.isInbox else {
+            newDate = RuDate.startOfDay(Date())
+            addDateMode = 0
+            showTimePicker = false
+            newDuration = 0
+            showDurationPicker = false
+            reminderEnabled = false
+            notificationPermissionMessage = nil
+            calendarSyncEnabled = false
+            calendarPermissionMessage = nil
+            showAddTask = true
+            return
+        }
+
         let date = task.dateScheduled ?? RuDate.startOfDay(Date())
         newDate = date
         let today = RuDate.startOfDay(Date())
@@ -170,16 +188,20 @@ final class AddTaskViewModel: ObservableObject {
         let shouldRemind = showTimePicker && reminderEnabled
         let shouldSyncCalendar = showTimePicker && calendarSyncEnabled
         if let task = editingTask {
-            if let updated = repository.update(
-                task,
-                title: title,
-                date: newDate,
-                time: timeStr,
-                duration: newDuration,
-                reminderEnabled: shouldRemind,
-                calendarSyncEnabled: shouldSyncCalendar
-            ) {
-                syncSideEffects(for: updated)
+            if task.isInbox {
+                _ = repository.updateInboxTitle(task, title: title)
+            } else {
+                if let updated = repository.update(
+                    task,
+                    title: title,
+                    date: newDate,
+                    time: timeStr,
+                    duration: newDuration,
+                    reminderEnabled: shouldRemind,
+                    calendarSyncEnabled: shouldSyncCalendar
+                ) {
+                    syncSideEffects(for: updated)
+                }
             }
         } else {
             let created = repository.addScheduledTask(

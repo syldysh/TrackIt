@@ -22,6 +22,7 @@ final class InboxViewModel: ObservableObject {
 
     @Published var newText = ""
     @Published var showAddModal = false
+    let taskEditorVM: AddTaskViewModel
 
     // MARK: - Вычисляемые свойства
 
@@ -39,7 +40,15 @@ final class InboxViewModel: ObservableObject {
         self.repository = repository
         self.notificationService = notificationService
         self.calendarSyncService = calendarSyncService
+        self.taskEditorVM = AddTaskViewModel(
+            repository: repository,
+            notificationService: notificationService,
+            calendarSyncService: calendarSyncService
+        )
         repository.changePublisher
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        taskEditorVM.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
     }
