@@ -27,6 +27,7 @@ protocol TaskRepositoryProtocol: AnyObject {
     @discardableResult func toggle(_ task: Task) -> Task?
     func pin(_ task: Task)
     func delete(_ task: Task)
+    @discardableResult func updateInboxTitle(_ task: Task, title: String) -> Task?
     @discardableResult func setTime(_ time: String?, for task: Task) -> Task?
     @discardableResult func scheduleFromInbox(_ task: Task, date: Date, time: String?, duration: Int16, reminderEnabled: Bool, calendarSyncEnabled: Bool) -> Task?
     @discardableResult func update(_ task: Task, title: String, date: Date, time: String?, duration: Int16, reminderEnabled: Bool, calendarSyncEnabled: Bool) -> Task?

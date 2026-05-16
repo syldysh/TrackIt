@@ -3,13 +3,12 @@
 //  TrackIt
 //
 //  Модальный экран добавления / редактирования задачи.
-//  Читает форм-стейт из vm.addTaskVM.
+//  Читает форм-стейт из переданного AddTaskViewModel.
 //
 
 import SwiftUI
 
 struct AddTaskOverlay: View {
-    @EnvironmentObject var vm: CalendarViewModel
     // Отдельный ObservedObject — чтобы работали $-биндинги к @Published-свойствам
     @ObservedObject var formVM: AddTaskViewModel
     var addFocused: FocusState<Bool>.Binding
@@ -45,7 +44,8 @@ struct AddTaskOverlay: View {
     }
 
     private var shouldScrollForm: Bool {
-        formVM.addDateMode == 2 || formVM.showTimePicker || formVM.showDurationPicker
+        !formVM.isEditingInboxTask
+            && (formVM.addDateMode == 2 || formVM.showTimePicker || formVM.showDurationPicker)
     }
 
     private let dateCalendarTopPadding: CGFloat = 16
@@ -79,29 +79,31 @@ struct AddTaskOverlay: View {
     private var formFields: some View {
         VStack(alignment: .leading, spacing: 0) {
             titleField
-            dateSection
-            TimePickerSection(isShowing: $formVM.showTimePicker, timeDate: $formVM.timeDate)
-                .onChange(of: formVM.showTimePicker) { _, isShowing in
-                    if !isShowing {
-                        formVM.disableReminder()
-                        formVM.disableCalendarSync()
+            if !formVM.isEditingInboxTask {
+                dateSection
+                TimePickerSection(isShowing: $formVM.showTimePicker, timeDate: $formVM.timeDate)
+                    .onChange(of: formVM.showTimePicker) { _, isShowing in
+                        if !isShowing {
+                            formVM.disableReminder()
+                            formVM.disableCalendarSync()
+                        }
                     }
+                if formVM.canShowReminderToggle {
+                    NotificationToggleSection(
+                        isOn: formVM.reminderEnabled,
+                        message: formVM.notificationPermissionMessage,
+                        onChange: { formVM.setReminderEnabled($0) }
+                    )
                 }
-            if formVM.canShowReminderToggle {
-                NotificationToggleSection(
-                    isOn: formVM.reminderEnabled,
-                    message: formVM.notificationPermissionMessage,
-                    onChange: { formVM.setReminderEnabled($0) }
-                )
+                if formVM.canShowCalendarSyncToggle {
+                    CalendarSyncToggleSection(
+                        isOn: formVM.calendarSyncEnabled,
+                        message: formVM.calendarPermissionMessage,
+                        onChange: { formVM.setCalendarSyncEnabled($0) }
+                    )
+                }
+                DurationPickerSection(isShowing: $formVM.showDurationPicker, duration: $formVM.newDuration)
             }
-            if formVM.canShowCalendarSyncToggle {
-                CalendarSyncToggleSection(
-                    isOn: formVM.calendarSyncEnabled,
-                    message: formVM.calendarPermissionMessage,
-                    onChange: { formVM.setCalendarSyncEnabled($0) }
-                )
-            }
-            DurationPickerSection(isShowing: $formVM.showDurationPicker, duration: $formVM.newDuration)
             actionButtons
         }
     }
