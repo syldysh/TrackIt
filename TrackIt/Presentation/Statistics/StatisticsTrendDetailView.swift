@@ -2,7 +2,7 @@
 //  StatisticsTrendDetailView.swift
 //  TrackIt
 //
-//  Подробности тренда продуктивности за 7 дней.
+//  Подробности тренда продуктивности за текущую неделю.
 //
 
 import SwiftUI

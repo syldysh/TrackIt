@@ -42,7 +42,7 @@ final class StatisticsViewModel: ObservableObject {
     }
 
     var periodTitle: String {
-        "За последние 7 дней"
+        "За текущую неделю"
     }
 
     var progressSupportText: String {

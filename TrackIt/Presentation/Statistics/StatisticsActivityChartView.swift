@@ -20,7 +20,7 @@ struct StatisticsActivityChartView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 chart
-                Text("Задач выполнено за последние 7 дней")
+                Text("Задач выполнено за текущую неделю")
                     .font(.system(size: 13))
                     .foregroundColor(Color(.secondaryLabel))
                     .frame(maxWidth: .infinity, alignment: .center)
