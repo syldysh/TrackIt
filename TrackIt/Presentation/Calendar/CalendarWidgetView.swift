@@ -12,8 +12,6 @@ struct CalendarWidgetView: View {
     @EnvironmentObject var vm: CalendarViewModel
     @Binding var isExpanded: Bool
 
-    @State private var expandDragOffset: CGFloat = 0
-
     var body: some View {
         VStack(spacing: 0) {
             if isExpanded {
@@ -26,21 +24,7 @@ struct CalendarWidgetView: View {
         .cardStyle()
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .offset(y: isExpanded ? max(expandDragOffset, 0) : 0)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 20)
-                .onChanged { value in
-                    guard isExpanded, value.translation.height > 0 else { return }
-                    expandDragOffset = value.translation.height
-                }
-                .onEnded { value in
-                    guard isExpanded else { return }
-                    if value.translation.height > 80 {
-                        withAnimation(.smoothSpring) { isExpanded = false }
-                    }
-                    withAnimation(.sheetSpring) { expandDragOffset = 0 }
-                }
-        )
+        .simultaneousGesture(calendarDragGesture)
     }
 
     // MARK: - Expand Button
@@ -48,8 +32,7 @@ struct CalendarWidgetView: View {
     private var expandButton: some View {
         Button {
             withAnimation(.smoothSpring) {
-                if !isExpanded { vm.syncMonthToSelected() }
-                isExpanded.toggle()
+                setExpanded(!isExpanded)
             }
         } label: {
             RoundedRectangle(cornerRadius: 3)
@@ -58,6 +41,50 @@ struct CalendarWidgetView: View {
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
         }
+    }
+
+    // MARK: - Interactive Expansion
+
+    private var calendarDragGesture: some Gesture {
+        DragGesture(minimumDistance: Constants.dragMinimumDistance, coordinateSpace: .local)
+            .onEnded { value in
+                settleDrag(value)
+            }
+    }
+
+    private func settleDrag(_ value: DragGesture.Value) {
+        let shouldChangeState = shouldSnapToOppositeState(value)
+        withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.86)) {
+            if shouldChangeState {
+                setExpanded(!isExpanded)
+            }
+        }
+    }
+
+    private func shouldSnapToOppositeState(_ value: DragGesture.Value) -> Bool {
+        guard isVerticalDrag(value) else { return false }
+
+        let translation = value.translation.height
+        let predictedTranslation = value.predictedEndTranslation.height
+
+        if isExpanded {
+            return translation < -Constants.snapDistance
+                || predictedTranslation < -Constants.predictedSnapDistance
+        } else {
+            return translation > Constants.snapDistance
+                || predictedTranslation > Constants.predictedSnapDistance
+        }
+    }
+
+    private func setExpanded(_ expanded: Bool) {
+        if expanded {
+            vm.syncMonthToSelected()
+        }
+        isExpanded = expanded
+    }
+
+    private func isVerticalDrag(_ value: DragGesture.Value) -> Bool {
+        abs(value.translation.height) > abs(value.translation.width) * Constants.verticalDominanceRatio
     }
 
     // MARK: - Expanded Month Grid
@@ -123,5 +150,12 @@ struct CalendarWidgetView: View {
             }
             .padding(.horizontal, 16)
         }
+    }
+
+    private enum Constants {
+        static let dragMinimumDistance: CGFloat = 12
+        static let snapDistance: CGFloat = 52
+        static let predictedSnapDistance: CGFloat = 112
+        static let verticalDominanceRatio: CGFloat = 1.15
     }
 }
