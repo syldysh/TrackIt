@@ -13,7 +13,15 @@ final class PlanningModeState: ObservableObject {
     @Published var offset: CGSize = .zero
     @Published var lockedAxis: PlanningSwipeAxis? = nil
     @Published var swipeHandled = false
-    @Published var swipeArcIsFadingOut = false
+    @Published private var highlightDirection: PlanningSwipeArcDirection = .none
+    @Published private var highlightProgress: CGFloat = 0
+    @Published private var highlightOpacity: Double = 0
+
+    private static let highlightFadeDelay: TimeInterval = 0.25
+    private static let highlightFadeDuration: TimeInterval = 0.28
+
+    private var clearHighlightTask: DispatchWorkItem?
+    private var highlightResetID = UUID()
 
     init(initialQueue: [Task]) {
         queue = initialQueue
@@ -24,7 +32,11 @@ final class PlanningModeState: ObservableObject {
     var isFinished: Bool { queue.isEmpty }
     var visibleTasks: [Task] { Array(queue.prefix(3)) }
     var swipeArcState: PlanningSwipeArcState {
-        PlanningSwipeArcState(offset: offset, isFadingOut: swipeArcIsFadingOut)
+        PlanningSwipeArcState(
+            direction: highlightDirection,
+            progress: highlightProgress,
+            opacity: highlightOpacity
+        )
     }
 
     func removeCurrentTaskFromQueue() {
@@ -38,15 +50,11 @@ final class PlanningModeState: ObservableObject {
         withTransaction(transaction) {
             offset = newOffset
         }
+        showDragHighlight(for: newOffset)
     }
 
     func showSwipeArcWithoutAnimation() {
-        guard swipeArcIsFadingOut else { return }
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            swipeArcIsFadingOut = false
-        }
+        clearHighlightTask?.cancel()
     }
 
     func finishCardExit(_ updateQueue: () -> Void) {
@@ -56,7 +64,80 @@ final class PlanningModeState: ObservableObject {
             updateQueue()
             offset = .zero
             lockedAxis = nil
-            swipeArcIsFadingOut = false
+        }
+    }
+
+    func showActionHighlight(_ direction: PlanningSwipeArcDirection) {
+        showHighlight(direction: direction, progress: 1)
+    }
+
+    func showActionHighlight(for targetOffset: CGSize) {
+        let state = PlanningSwipeArcState(offset: targetOffset)
+        showHighlight(direction: state.direction, progress: 1)
+    }
+
+    func fadeHighlightAfterDelay() {
+        fadeHighlight(after: Self.highlightFadeDelay)
+    }
+
+    func fadeHighlightImmediately() {
+        fadeHighlight(after: 0)
+    }
+
+    private func showDragHighlight(for offset: CGSize) {
+        let state = PlanningSwipeArcState(offset: offset)
+        guard state.direction != .none, state.progress > 0 else { return }
+        showHighlight(direction: state.direction, progress: state.progress)
+    }
+
+    private func showHighlight(direction: PlanningSwipeArcDirection, progress: CGFloat) {
+        clearHighlightTask?.cancel()
+        highlightResetID = UUID()
+
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            highlightDirection = direction
+            highlightProgress = min(max(progress, 0), 1)
+            highlightOpacity = direction == .none ? 0 : 1
+        }
+    }
+
+    private func fadeHighlight(after delay: TimeInterval) {
+        clearHighlightTask?.cancel()
+        let resetID = UUID()
+        highlightResetID = resetID
+
+        let workItem = DispatchWorkItem { [weak self] in
+            _Concurrency.Task { @MainActor [weak self] in
+                guard let self, self.highlightResetID == resetID else { return }
+                withAnimation(.easeOut(duration: Self.highlightFadeDuration)) {
+                    self.highlightOpacity = 0
+                }
+                self.clearHighlightAfterFade(resetID: resetID)
+            }
+        }
+
+        clearHighlightTask = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func clearHighlightAfterFade(resetID: UUID) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.highlightFadeDuration) { [weak self] in
+            _Concurrency.Task { @MainActor [weak self] in
+                guard let self, self.highlightResetID == resetID else { return }
+                self.clearHighlightWithoutAnimation()
+            }
+        }
+    }
+
+    private func clearHighlightWithoutAnimation() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            highlightDirection = .none
+            highlightProgress = 0
+            highlightOpacity = 0
         }
     }
 }
