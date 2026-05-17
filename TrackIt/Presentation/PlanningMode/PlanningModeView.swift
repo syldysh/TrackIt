@@ -198,10 +198,9 @@ struct PlanningModeView: View {
         guard !state.swipeHandled else { return }
         state.swipeHandled = true
         state.showActionHighlight(for: targetOffset)
-        withAnimation(.easeOut(duration: 0.22)) {
+        withAnimation(.easeOut(duration: 0.22), completionCriteria: .logicallyComplete) {
             state.offset = targetOffset
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+        } completion: {
             state.finishCardExit(updateQueue)
             state.swipeHandled = false
             state.fadeHighlightAfterDelay()

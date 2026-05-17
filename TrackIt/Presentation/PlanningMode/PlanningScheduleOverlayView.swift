@@ -9,11 +9,30 @@ import SwiftUI
 
 struct PlanningScheduleOverlayView: View {
     let task: Task?
-    let notificationService: any NotificationServiceProtocol
-    let calendarSyncService: any CalendarSyncServiceProtocol
+    @StateObject private var formVM: SchedulePickerViewModel
     @ObservedObject var dragState: ModalDragState
     let onSchedule: (Task, Date, String?, Int16, Bool, Bool) -> Void
     let onCancel: () -> Void
+
+    init(
+        task: Task?,
+        notificationService: any NotificationServiceProtocol,
+        calendarSyncService: any CalendarSyncServiceProtocol,
+        dragState: ModalDragState,
+        onSchedule: @escaping (Task, Date, String?, Int16, Bool, Bool) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.task = task
+        self.dragState = dragState
+        self.onSchedule = onSchedule
+        self.onCancel = onCancel
+        _formVM = StateObject(
+            wrappedValue: SchedulePickerViewModel(
+                notificationService: notificationService,
+                calendarSyncService: calendarSyncService
+            )
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -24,8 +43,7 @@ struct PlanningScheduleOverlayView: View {
             if let task {
                 SchedulePickerView(
                     task: task,
-                    notificationService: notificationService,
-                    calendarSyncService: calendarSyncService,
+                    formVM: formVM,
                     dragState: dragState,
                     onSchedule: { date, time, duration, reminderEnabled, calendarSyncEnabled in
                         onSchedule(task, date, time, duration, reminderEnabled, calendarSyncEnabled)

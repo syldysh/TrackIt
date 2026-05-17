@@ -15,6 +15,35 @@ protocol NotificationServiceProtocol: AnyObject {
     func cancelNotification(for taskID: UUID)
 }
 
+enum NotificationSchedulingPolicy {
+    static func fireDate(for task: Task, now: Date = Date()) -> Date? {
+        guard task.reminderEnabled,
+              !task.isCompleted,
+              let fireDate = notificationDate(for: task),
+              fireDate > now else {
+            return nil
+        }
+
+        return fireDate
+    }
+
+    private static func notificationDate(for task: Task) -> Date? {
+        guard let date = task.dateScheduled,
+              let time = task.time,
+              !time.isEmpty else {
+            return nil
+        }
+
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return nil }
+
+        var components = RuDate.calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = parts[0]
+        components.minute = parts[1]
+        return RuDate.calendar.date(from: components)
+    }
+}
+
 final class LocalNotificationManager: NotificationServiceProtocol {
     static let shared = LocalNotificationManager()
 
@@ -51,10 +80,7 @@ final class LocalNotificationManager: NotificationServiceProtocol {
         center.removePendingNotificationRequests(withIdentifiers: [id])
         center.removeDeliveredNotifications(withIdentifiers: [id])
 
-        guard task.reminderEnabled,
-              !task.isCompleted,
-              let fireDate = notificationDate(for: task),
-              fireDate > Date() else {
+        guard let fireDate = NotificationSchedulingPolicy.fireDate(for: task) else {
             return
         }
 
@@ -93,17 +119,4 @@ final class LocalNotificationManager: NotificationServiceProtocol {
         "task-reminder-\(taskID.uuidString)"
     }
 
-    private func notificationDate(for task: Task) -> Date? {
-        guard let date = task.dateScheduled,
-              let time = task.time,
-              !time.isEmpty else { return nil }
-
-        let parts = time.split(separator: ":").compactMap { Int($0) }
-        guard parts.count == 2 else { return nil }
-
-        var components = RuDate.calendar.dateComponents([.year, .month, .day], from: date)
-        components.hour = parts[0]
-        components.minute = parts[1]
-        return RuDate.calendar.date(from: components)
-    }
 }

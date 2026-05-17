@@ -132,15 +132,13 @@ final class SchedulePickerViewModel: ObservableObject {
             return
         }
 
-        guard showTimePicker else {
-            disableReminder()
-            return
-        }
-
-        notificationService.requestAuthorizationIfNeeded { [weak self] granted in
+        PermissionRequestHelper.requestNotification(
+            service: notificationService,
+            requiresTimePicker: showTimePicker
+        ) { [weak self] enabled, message in
             guard let self else { return }
-            self.reminderEnabled = granted
-            self.notificationPermissionMessage = granted ? nil : Self.permissionDeniedText
+            self.reminderEnabled = enabled
+            self.notificationPermissionMessage = message
         }
     }
 
@@ -155,15 +153,13 @@ final class SchedulePickerViewModel: ObservableObject {
             return
         }
 
-        guard showTimePicker else {
-            disableCalendarSync()
-            return
-        }
-
-        calendarSyncService.requestAuthorizationIfNeeded { [weak self] granted in
+        PermissionRequestHelper.requestCalendarAccess(
+            service: calendarSyncService,
+            requiresTimePicker: showTimePicker
+        ) { [weak self] enabled, message in
             guard let self else { return }
-            self.calendarSyncEnabled = granted
-            self.calendarPermissionMessage = granted ? nil : Self.calendarPermissionDeniedText
+            self.calendarSyncEnabled = enabled
+            self.calendarPermissionMessage = message
         }
     }
 
@@ -171,7 +167,4 @@ final class SchedulePickerViewModel: ObservableObject {
         calendarSyncEnabled = false
         calendarPermissionMessage = nil
     }
-
-    private static let permissionDeniedText = "Разрешение не выдано. Включите уведомления для TrackIt в настройках iOS."
-    private static let calendarPermissionDeniedText = "Разрешение не выдано. Включите доступ к календарям для TrackIt в настройках iOS."
 }

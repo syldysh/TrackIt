@@ -13,13 +13,12 @@ struct SchedulePickerView: View {
     let onSchedule: (Date, String?, Int16, Bool, Bool) -> Void
     let onCancel: () -> Void
 
-    @StateObject private var formVM: SchedulePickerViewModel
+    @ObservedObject var formVM: SchedulePickerViewModel
     @ObservedObject var dragState: ModalDragState
 
     init(
         task: Task,
-        notificationService: any NotificationServiceProtocol,
-        calendarSyncService: any CalendarSyncServiceProtocol,
+        formVM: SchedulePickerViewModel,
         dragState: ModalDragState,
         onSchedule: @escaping (Date, String?, Int16, Bool, Bool) -> Void,
         onCancel: @escaping () -> Void
@@ -27,13 +26,8 @@ struct SchedulePickerView: View {
         self.task = task
         self.onSchedule = onSchedule
         self.onCancel = onCancel
+        self.formVM = formVM
         self.dragState = dragState
-        _formVM = StateObject(
-            wrappedValue: SchedulePickerViewModel(
-                notificationService: notificationService,
-                calendarSyncService: calendarSyncService
-            )
-        )
     }
 
     var body: some View {
