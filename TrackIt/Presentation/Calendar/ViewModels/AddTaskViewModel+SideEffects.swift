@@ -14,15 +14,13 @@ extension AddTaskViewModel {
             return
         }
 
-        guard showTimePicker else {
-            disableReminder()
-            return
-        }
-
-        notificationService.requestAuthorizationIfNeeded { [weak self] granted in
+        PermissionRequestHelper.requestNotification(
+            service: notificationService,
+            requiresTimePicker: showTimePicker
+        ) { [weak self] enabled, message in
             guard let self else { return }
-            reminderEnabled = granted
-            notificationPermissionMessage = granted ? nil : Self.permissionDeniedText
+            reminderEnabled = enabled
+            notificationPermissionMessage = message
         }
     }
 
@@ -37,15 +35,13 @@ extension AddTaskViewModel {
             return
         }
 
-        guard showTimePicker else {
-            disableCalendarSync()
-            return
-        }
-
-        calendarSyncService.requestAuthorizationIfNeeded { [weak self] granted in
+        PermissionRequestHelper.requestCalendarAccess(
+            service: calendarSyncService,
+            requiresTimePicker: showTimePicker
+        ) { [weak self] enabled, message in
             guard let self else { return }
-            calendarSyncEnabled = granted
-            calendarPermissionMessage = granted ? nil : Self.calendarPermissionDeniedText
+            calendarSyncEnabled = enabled
+            calendarPermissionMessage = message
         }
     }
 
@@ -61,7 +57,4 @@ extension AddTaskViewModel {
             _ = self?.repository.updateCalendarEventIdentifier(eventIdentifier, for: task.id)
         }
     }
-
-    private static let permissionDeniedText = "Разрешение не выдано. Включите уведомления для TrackIt в настройках iOS."
-    private static let calendarPermissionDeniedText = "Разрешение не выдано. Включите доступ к календарям для TrackIt в настройках iOS."
 }
