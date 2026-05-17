@@ -7,8 +7,14 @@
 //
 
 import CoreData
+import os
 
 struct PersistenceController {
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "TrackIt",
+        category: "Persistence"
+    )
 
     static let shared = PersistenceController()
 
@@ -22,7 +28,6 @@ struct PersistenceController {
         container = NSPersistentContainer(name: "TrackIt")
 
         if inMemory {
-            // Для тестов и превью — данные хранятся только в памяти
             container.persistentStoreDescriptions.first?.url =
                 URL(fileURLWithPath: "/dev/null")
         }
@@ -46,7 +51,9 @@ struct PersistenceController {
             try context.save()
         } catch {
             let nserror = error as NSError
-            fatalError("CoreData: ошибка сохранения — \(nserror), \(nserror.userInfo)")
+            Self.logger.error(
+                "CoreData: ошибка сохранения — \(nserror.localizedDescription, privacy: .public), \(String(describing: nserror.userInfo), privacy: .public)"
+            )
         }
     }
 }
