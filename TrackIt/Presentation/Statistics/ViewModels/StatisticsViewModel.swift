@@ -15,18 +15,16 @@ final class StatisticsViewModel: ObservableObject {
 
     private let repository: any TaskRepositoryProtocol
     private var cancellables = Set<AnyCancellable>()
+    @Published private(set) var statistics: StatisticsSnapshot
 
     // MARK: - Init
 
     init(repository: any TaskRepositoryProtocol) {
         self.repository = repository
+        self.statistics = StatisticsService.snapshot(tasks: repository.tasks)
         repository.changePublisher
-            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .sink { [weak self] _ in self?.refreshStatistics() }
             .store(in: &cancellables)
-    }
-
-    var statistics: StatisticsSnapshot {
-        StatisticsService.snapshot(tasks: repository.tasks)
     }
 
     var completedCount: Int {
@@ -71,5 +69,9 @@ final class StatisticsViewModel: ObservableObject {
 
     var bestProductivityDay: StatisticsDailySummary? {
         statistics.bestProductivityDay
+    }
+
+    private func refreshStatistics() {
+        statistics = StatisticsService.snapshot(tasks: repository.tasks)
     }
 }
