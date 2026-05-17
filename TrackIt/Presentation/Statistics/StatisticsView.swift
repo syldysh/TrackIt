@@ -11,6 +11,7 @@ struct StatisticsView: View {
     @EnvironmentObject var vm: StatisticsViewModel
     @State private var activeDetail: StatisticsDetailDestination? = nil
     @StateObject private var progressModalDragState = ModalDragState()
+    private let applicationInfo = AppInfoProvider.current()
 
     private var isNarrowScreen: Bool { UIScreen.main.bounds.width <= 340 }
     private var modalHorizontalPadding: CGFloat { isNarrowScreen ? 16 : 24 }
@@ -93,7 +94,7 @@ struct StatisticsView: View {
 
     private var appInfo: some View {
         VStack(spacing: 4) {
-            Text("TrackIt Version 1.0.0")
+            Text("\(applicationInfo.name) Version \(applicationInfo.version)")
                 .font(.system(size: 13))
                 .foregroundColor(Color(.secondaryLabel))
             Text("Made with love <3")

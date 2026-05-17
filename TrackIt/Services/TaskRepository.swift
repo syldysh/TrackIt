@@ -73,7 +73,7 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
     // MARK: - Вычисляемые свойства
 
     var inboxTasks: [Task] {
-        tasks.filter { $0.isInbox }
+        tasks.filter { $0.isInbox }.sorted(by: Task.displayOrder)
     }
 
     var scheduledTasks: [Task] {
@@ -81,10 +81,12 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
     }
 
     func tasks(for date: Date) -> [Task] {
-        return scheduledTasks.filter { task in
-            guard let scheduled = task.dateScheduled else { return false }
-            return RuDate.calendar.isDate(scheduled, inSameDayAs: date)
-        }
+        scheduledTasks
+            .filter { task in
+                guard let scheduled = task.dateScheduled else { return false }
+                return RuDate.calendar.isDate(scheduled, inSameDayAs: date)
+            }
+            .sorted(by: Task.displayOrder)
     }
 
     var completedCount: Int {

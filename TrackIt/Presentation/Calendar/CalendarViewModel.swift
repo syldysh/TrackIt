@@ -107,12 +107,7 @@ final class CalendarViewModel: ObservableObject {
     }
 
     func sortedActiveTasks(for date: Date) -> [Task] {
-        tasks(for: date).filter { !$0.isCompleted }.sorted {
-            if $0.pinned != $1.pinned { return $0.pinned && !$1.pinned }
-            let t0 = $0.time ?? "", t1 = $1.time ?? ""
-            if t0.isEmpty != t1.isEmpty { return !t0.isEmpty }
-            return t0 < t1
-        }
+        tasks(for: date).filter { !$0.isCompleted }
     }
 
     func completedTasks(for date: Date) -> [Task] {
