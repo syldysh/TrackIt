@@ -11,9 +11,6 @@ import SwiftUI
 struct SettingsSectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            StatisticsSettingsGroup(title: "Настройки") {
-                settingsRow(.notifications)
-            }
             StatisticsSettingsGroup(title: "Поддержка") {
                 settingsRow(.help)
                 Divider().padding(.leading, 52)
@@ -34,8 +31,6 @@ struct SettingsSectionView: View {
     @ViewBuilder
     private func destinationView(for destination: SettingsDestination) -> some View {
         switch destination {
-        case .notifications:
-            StatisticsNotificationSettingsView()
         case .help:
             StatisticsHelpFeedbackView()
         case .about:
