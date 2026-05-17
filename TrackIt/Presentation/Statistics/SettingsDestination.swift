@@ -7,7 +7,6 @@
 //
 
 enum SettingsDestination: Identifiable {
-    case notifications
     case help
     case about
 
@@ -15,7 +14,6 @@ enum SettingsDestination: Identifiable {
 
     var title: String {
         switch self {
-        case .notifications: "Уведомления"
         case .help: "Помощь и обратная связь"
         case .about: "О приложении"
         }
@@ -23,7 +21,6 @@ enum SettingsDestination: Identifiable {
 
     var icon: String {
         switch self {
-        case .notifications: "bell.fill"
         case .help: "questionmark.circle.fill"
         case .about: "info.circle.fill"
         }

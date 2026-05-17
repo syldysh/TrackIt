@@ -37,7 +37,7 @@ final class LocalNotificationManager: NotificationServiceProtocol {
             case .denied:
                 DispatchQueue.main.async { completion(false) }
             case .notDetermined:
-                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                self.center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
                     DispatchQueue.main.async { completion(granted) }
                 }
             @unknown default:
@@ -75,7 +75,11 @@ final class LocalNotificationManager: NotificationServiceProtocol {
             let components = RuDate.calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
-            center.add(request)
+            self.center.add(request) { error in
+                if let error {
+                    print("Notification scheduling error: \(error)")
+                }
+            }
         }
     }
 
