@@ -3,6 +3,7 @@ import XCTest
 
 final class NotificationLogicTests: XCTestCase {
     func testCreatingScheduledTaskWithReminderSyncsNotification() {
+        // given
         let repository = MockTaskRepository()
         let notificationService = MockNotificationService()
         let viewModel = AddTaskViewModel(
@@ -16,8 +17,10 @@ final class NotificationLogicTests: XCTestCase {
         viewModel.timeDate = TestTaskFactory.date(day: 18, hour: 10, minute: 30)
         viewModel.reminderEnabled = true
 
+        // when
         viewModel.commitAddTask()
 
+        // then
         XCTAssertEqual(notificationService.syncedTasks.count, 1)
         XCTAssertEqual(notificationService.syncedTasks.first?.title, "Call")
         XCTAssertEqual(notificationService.syncedTasks.first?.time, "10:30")
@@ -25,6 +28,7 @@ final class NotificationLogicTests: XCTestCase {
     }
 
     func testEditingScheduledTaskWithReminderSyncsNotification() {
+        // given
         let task = TestTaskFactory.make(
             title: "Old",
             dateScheduled: futureDate(dayOffset: 1),
@@ -43,8 +47,10 @@ final class NotificationLogicTests: XCTestCase {
         viewModel.timeDate = TestTaskFactory.date(day: 18, hour: 11, minute: 45)
         viewModel.reminderEnabled = true
 
+        // when
         viewModel.commitAddTask()
 
+        // then
         XCTAssertEqual(notificationService.syncedTasks.count, 1)
         XCTAssertEqual(notificationService.syncedTasks.first?.title, "Updated")
         XCTAssertEqual(notificationService.syncedTasks.first?.time, "11:45")
@@ -52,6 +58,7 @@ final class NotificationLogicTests: XCTestCase {
     }
 
     func testDeletingTaskCancelsNotification() {
+        // given
         let task = TestTaskFactory.make(
             title: "Delete",
             dateScheduled: futureDate(dayOffset: 1),
@@ -66,12 +73,15 @@ final class NotificationLogicTests: XCTestCase {
             calendarSyncService: MockCalendarSyncService()
         )
 
+        // when
         viewModel.delete(task)
 
+        // then
         XCTAssertEqual(notificationService.cancelledTaskIDs, [task.id])
     }
 
     func testCompletingTaskResyncsNotificationWithCompletedState() {
+        // given
         let task = TestTaskFactory.make(
             title: "Complete",
             dateScheduled: futureDate(dayOffset: 1),
@@ -86,13 +96,16 @@ final class NotificationLogicTests: XCTestCase {
             calendarSyncService: MockCalendarSyncService()
         )
 
+        // when
         viewModel.toggle(task)
 
+        // then
         XCTAssertEqual(notificationService.syncedTasks.first?.id, task.id)
         XCTAssertEqual(notificationService.syncedTasks.first?.isCompleted, true)
     }
 
     func testReminderDisabledDoesNotProduceNotificationFireDate() {
+        // given
         let task = TestTaskFactory.make(
             title: "No reminder",
             dateScheduled: futureDate(dayOffset: 1),
@@ -100,8 +113,10 @@ final class NotificationLogicTests: XCTestCase {
             reminderEnabled: false
         )
 
+        // when
         let fireDate = NotificationSchedulingPolicy.fireDate(for: task, now: Date())
 
+        // then
         XCTAssertNil(fireDate)
     }
 
