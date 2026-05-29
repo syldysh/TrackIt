@@ -76,12 +76,16 @@ struct InboxView: View {
 
     private var mainContent: some View {
         NavigationStack {
-            ScrollView {
-                if vm.inboxTasks.isEmpty {
-                    emptyState
-                } else {
-                    taskList
+            GeometryReader { proxy in
+                ScrollView {
+                    if vm.inboxTasks.isEmpty {
+                        emptyState
+                            .frame(minHeight: proxy.size.height, alignment: .center)
+                    } else {
+                        taskList
+                    }
                 }
+                .scrollDisabled(vm.inboxTasks.isEmpty)
             }
             .background(Color(.secondarySystemBackground))
             .navigationTitle("Планировщик")
@@ -115,7 +119,6 @@ struct InboxView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)
-        .padding(.vertical, 96)
     }
 
     private var taskList: some View {
