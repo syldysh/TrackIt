@@ -35,7 +35,7 @@ struct InboxView: View {
                 mainContent
                 floatingButtons
                 if vm.showAddModal {
-                    ModalDimBackground(dragState: addTaskDragState, baseOpacity: 0.3, onTap: dismissAdd)
+                    ModalDimBackground(dragState: addTaskDragState, baseOpacity: 0.3, onTap: dismissAddFromBackground)
                         .transition(.opacity)
                         .zIndex(19)
                 }
@@ -44,10 +44,11 @@ struct InboxView: View {
                         dragState: addTaskDragState,
                         inputFocused: $inputFocused,
                         onCommit: commit,
-                        onDismiss: dismissAdd
+                        onDismiss: { finishAddDismiss() },
+                        onBackgroundTap: dismissAddFromBackground
                     )
                     .environmentObject(vm)
-                        .transition(.move(edge: .bottom))
+                        .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .identity))
                         .zIndex(20)
                 }
                 if taskToSchedule != nil {
@@ -58,7 +59,8 @@ struct InboxView: View {
                     formVM: vm.taskEditorVM,
                     dragState: editTaskDragState,
                     inputFocused: $inputFocused,
-                    onDismiss: dismissTaskEditor
+                    onDismiss: finishTaskEditorDismiss,
+                    onBackgroundTap: dismissTaskEditorFromBackground
                 )
             }
         }
@@ -97,7 +99,6 @@ struct InboxView: View {
         VStack(spacing: 16) {
             Button {
                 withAnimation(.sheetSpring) { vm.showAddModal = true }
-                inputFocused = true
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 28, weight: .semibold))
@@ -165,7 +166,6 @@ struct InboxView: View {
                         }
                         Button {
                             withAnimation(.sheetSpring) { vm.showAddModal = true }
-                            inputFocused = true
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 24, weight: .semibold))
@@ -195,16 +195,41 @@ struct InboxView: View {
     }
 
     private func commit() {
-        withAnimation(.sheetSpring) { vm.commitTask() }
-        inputFocused = false
+        guard let title = vm.trimmedDraftTitle else { return }
+        dismissAdd(clearDraftAfterClose: false) {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                vm.addInboxTask(title: title)
+                if !vm.showAddModal {
+                    vm.clearAddDraft()
+                }
+            }
+        }
     }
 
-    private func dismissAdd() {
-        withAnimation(.sheetSpring) {
-            vm.showAddModal = false
-            vm.newText = ""
-        }
+    private func dismissAdd(clearDraftAfterClose: Bool = true, afterClose: (() -> Void)? = nil) {
         inputFocused = false
+        addTaskDragState.dismiss {
+            finishAddDismiss(clearDraftAfterClose: clearDraftAfterClose, afterClose: afterClose)
+        }
+    }
+
+    private func finishAddDismiss(clearDraftAfterClose: Bool = true, afterClose: (() -> Void)? = nil) {
+        vm.hideAddModal()
+        afterClose?()
+        guard clearDraftAfterClose else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + ModalDismissalTiming.cleanupDelay) {
+            guard !vm.showAddModal else { return }
+            vm.clearAddDraft()
+        }
+    }
+
+    private func dismissAddFromBackground() {
+        inputFocused = false
+        DispatchQueue.main.async {
+            dismissAdd()
+        }
     }
 
     private func openScheduleSheet(for task: Task) {
@@ -241,7 +266,22 @@ struct InboxView: View {
     }
 
     private func dismissTaskEditor() {
-        withAnimation(.sheetSpring) { vm.taskEditorVM.reset() }
         inputFocused = false
+        editTaskDragState.dismiss(onDismiss: finishTaskEditorDismiss)
+    }
+
+    private func finishTaskEditorDismiss() {
+        vm.taskEditorVM.hideForm()
+        DispatchQueue.main.asyncAfter(deadline: .now() + ModalDismissalTiming.cleanupDelay) {
+            guard !vm.taskEditorVM.showAddTask else { return }
+            vm.taskEditorVM.clearFormState()
+        }
+    }
+
+    private func dismissTaskEditorFromBackground() {
+        inputFocused = false
+        DispatchQueue.main.async {
+            dismissTaskEditor()
+        }
     }
 }

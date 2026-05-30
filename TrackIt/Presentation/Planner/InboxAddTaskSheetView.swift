@@ -14,24 +14,41 @@ struct InboxAddTaskSheetView: View {
     let inputFocused: FocusState<Bool>.Binding
     let onCommit: () -> Void
     let onDismiss: () -> Void
+    let onBackgroundTap: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer()
+            backgroundTapArea
             VStack(spacing: 0) {
                 sheetHeader
-                hint
-                textField
-                sheetButtons
+                sheetBody
             }
             .background(Color(.systemBackground))
             .cornerRadius(20, corners: [.topLeft, .topRight])
             .offset(y: dragState.offset)
         }
-        .ignoresSafeArea(edges: .bottom)
+        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     // MARK: - Content
+
+    private var backgroundTapArea: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onBackgroundTap)
+    }
+
+    private var sheetBody: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                hint
+                textField
+                sheetButtons
+            }
+        }
+        .scrollDismissesKeyboard(.immediately)
+        .fixedSize(horizontal: false, vertical: true)
+    }
 
     private var sheetHeader: some View {
         ModalDragHandle(dragState: dragState, onDismiss: onDismiss) {
@@ -39,7 +56,7 @@ struct InboxAddTaskSheetView: View {
                 Text("Новая задача")
                     .font(.system(size: 20, weight: .semibold))
                 Spacer()
-                Button { onDismiss() } label: {
+                Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(Color(.secondaryLabel))
@@ -78,7 +95,7 @@ struct InboxAddTaskSheetView: View {
 
     private var sheetButtons: some View {
         HStack(spacing: 12) {
-            Button { onDismiss() } label: {
+            Button { dismiss() } label: {
                 Text("Отмена")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.red)
@@ -105,5 +122,10 @@ struct InboxAddTaskSheetView: View {
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 32)
+    }
+
+    private func dismiss() {
+        inputFocused.wrappedValue = false
+        dragState.dismiss(onDismiss: onDismiss)
     }
 }

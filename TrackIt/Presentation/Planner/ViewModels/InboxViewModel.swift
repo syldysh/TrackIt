@@ -32,6 +32,11 @@ final class InboxViewModel: ObservableObject {
         !newText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    var trimmedDraftTitle: String? {
+        let text = newText.trimmingCharacters(in: .whitespaces)
+        return text.isEmpty ? nil : text
+    }
+
     init(
         repository: any TaskRepositoryProtocol,
         notificationService: any NotificationServiceProtocol,
@@ -55,12 +60,33 @@ final class InboxViewModel: ObservableObject {
 
     // MARK: - Действия
 
+    @discardableResult
+    func addInboxTaskFromDraft() -> Bool {
+        guard let text = trimmedDraftTitle else { return false }
+        addInboxTask(title: text)
+        return true
+    }
+
+    func addInboxTask(title: String) {
+        repository.addInboxTask(title: title)
+    }
+
     func commitTask() {
-        let text = newText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        repository.addInboxTask(title: text)
-        newText = ""
+        guard addInboxTaskFromDraft() else { return }
+        resetAddDraft()
+    }
+
+    func hideAddModal() {
         showAddModal = false
+    }
+
+    func clearAddDraft() {
+        newText = ""
+    }
+
+    func resetAddDraft() {
+        hideAddModal()
+        clearAddDraft()
     }
 
     func toggle(_ task: Task) {

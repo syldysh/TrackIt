@@ -66,6 +66,11 @@ final class AddTaskViewModel: ObservableObject {
     // MARK: - Открыть форму (новая задача)
 
     func prepareAddTask(selectedDate: Date) {
+        editingTask = nil
+        newTitle = ""
+        newDuration = 0
+        showDurationPicker = false
+
         let today = RuDate.startOfDay(Date())
         let tomorrow = RuDate.addDays(today, 1)
         if selectedDate >= today {
@@ -105,11 +110,14 @@ final class AddTaskViewModel: ObservableObject {
 
     // Тап по сетке в модальном окне — конкретная дата
     func prepareAddTaskAt(hour: Int, minute: Int, date: Date) {
+        editingTask = nil
         newDate = RuDate.startOfDay(date)
         addDateMode = 2
         showAddTask = true
         newTitle = ""
         showTimePicker = true
+        newDuration = 0
+        showDurationPicker = false
         reminderEnabled = false
         notificationPermissionMessage = nil
         calendarSyncEnabled = false
@@ -176,9 +184,10 @@ final class AddTaskViewModel: ObservableObject {
 
     // MARK: - Подтвердить (создать / обновить)
 
-    func commitAddTask() {
+    @discardableResult
+    func saveTaskFromForm() -> Bool {
         let title = newTitle.trimmingCharacters(in: .whitespaces)
-        guard !title.isEmpty else { return }
+        guard !title.isEmpty else { return false }
         let timeStr: String? = showTimePicker
             ? String(format: "%02d:%02d",
                      RuDate.calendar.component(.hour, from: timeDate),
@@ -214,13 +223,21 @@ final class AddTaskViewModel: ObservableObject {
             )
             syncSideEffects(for: created)
         }
+        return true
+    }
+
+    func commitAddTask() {
+        guard saveTaskFromForm() else { return }
         reset()
     }
 
     // MARK: - Сбросить форму
 
-    func reset() {
+    func hideForm() {
         showAddTask = false
+    }
+
+    func clearFormState() {
         editingTask = nil
         newTitle = ""
         showTimePicker = false
@@ -232,5 +249,10 @@ final class AddTaskViewModel: ObservableObject {
         notificationPermissionMessage = nil
         calendarSyncEnabled = false
         calendarPermissionMessage = nil
+    }
+
+    func reset() {
+        hideForm()
+        clearFormState()
     }
 }
