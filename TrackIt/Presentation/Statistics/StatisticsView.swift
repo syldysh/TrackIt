@@ -10,6 +10,9 @@ import SwiftUI
 struct StatisticsView: View {
     @EnvironmentObject var vm: StatisticsViewModel
     @State private var activeDetail: StatisticsDetailDestination? = nil
+    @State private var highlightedFields = Set<ProgressAnalyticsField>()
+    @State private var celebrationID: UUID?
+    @State private var resetAnimationWorkItem: DispatchWorkItem?
     @StateObject private var progressModalDragState = ModalDragState()
     private let applicationInfo = AppInfoProvider.current()
 
@@ -25,6 +28,7 @@ struct StatisticsView: View {
                             completionRate: vm.completionRate,
                             supportText: vm.progressSupportText,
                             isNarrowScreen: isNarrowScreen,
+                            isHighlighted: highlightedFields.contains(.completionRate),
                             action: { openDetail(.progress) }
                         )
                         statCards
@@ -44,9 +48,15 @@ struct StatisticsView: View {
             }
             .allowsHitTesting(activeDetail == nil)
 
+            celebrationOverlay
             progressModalOverlay
         }
         .background(TabBarHider(hide: activeDetail != nil))
+        .onAppear(perform: refreshAndPlayPendingAnimations)
+        .onDisappear(perform: cancelPendingAnimationReset)
+        .onChange(of: vm.analyticsDelta?.id) { _, _ in
+            playAnalyticsDeltaIfNeeded(vm.analyticsDelta)
+        }
     }
 
     // MARK: - Stat Cards
@@ -70,6 +80,7 @@ struct StatisticsView: View {
             iconColor: Color(.systemGreen),
             value: "\(vm.completedCount)",
             label: "Задач выполнено",
+            isHighlighted: highlightedFields.contains(.completedCount),
             action: { openDetail(.completedTasks) }
         )
     }
@@ -80,8 +91,19 @@ struct StatisticsView: View {
             iconColor: Color(.systemOrange),
             value: "\(vm.streakDays)",
             label: "Дней подряд",
+            isHighlighted: highlightedFields.contains(.streakDays),
             action: { openDetail(.streak) }
         )
+    }
+
+    @ViewBuilder
+    private var celebrationOverlay: some View {
+        if let celebrationID {
+            ProgressCelebrationView()
+                .id(celebrationID)
+                .allowsHitTesting(false)
+                .zIndex(8)
+        }
     }
 
     // MARK: - Settings
@@ -147,5 +169,42 @@ struct StatisticsView: View {
 
     private func changeActiveDetail(_ destination: StatisticsDetailDestination) {
         withAnimation(.snappySpring) { activeDetail = destination }
+    }
+
+    private func refreshAndPlayPendingAnimations() {
+        vm.refreshAnalytics()
+        playAnalyticsDeltaIfNeeded(vm.analyticsDelta)
+    }
+
+    private func playAnalyticsDeltaIfNeeded(_ delta: ProgressAnalyticsDelta?) {
+        guard let delta, delta.hasPositiveChanges else { return }
+
+        resetAnimationWorkItem?.cancel()
+        withAnimation(.snappySpring) {
+            highlightedFields = delta.improvedFields
+            celebrationID = delta.id
+        }
+
+        let resetWorkItem = DispatchWorkItem {
+            guard celebrationID == delta.id else { return }
+            withAnimation(.easeOut(duration: 0.22)) {
+                highlightedFields.removeAll()
+                celebrationID = nil
+            }
+        }
+        resetAnimationWorkItem = resetWorkItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.celebrationDuration, execute: resetWorkItem)
+        vm.consumeAnalyticsDelta(delta.id)
+    }
+
+    private func cancelPendingAnimationReset() {
+        resetAnimationWorkItem?.cancel()
+        resetAnimationWorkItem = nil
+        highlightedFields.removeAll()
+        celebrationID = nil
+    }
+
+    private enum Constants {
+        static let celebrationDuration: TimeInterval = 1.55
     }
 }

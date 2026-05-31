@@ -1,13 +1,13 @@
 //
-//  PlannerCompletionConfettiView.swift
+//  CompletionConfettiView.swift
 //  TrackIt
 //
-//  Системное конфетти для финального состояния режима планирования.
+//  Лёгкое системное конфетти для позитивных событий.
 //
 
 import SwiftUI
 
-struct PlannerCompletionConfettiView: View {
+struct CompletionConfettiView: View {
     @State private var isExpanded = false
 
     var body: some View {

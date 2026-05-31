@@ -13,6 +13,7 @@ struct ProgressStatCardView: View {
     let iconColor: Color
     let value: String
     let label: String
+    let isHighlighted: Bool
     let action: () -> Void
 
     var body: some View {
@@ -41,6 +42,12 @@ struct ProgressStatCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.systemBackground))
             .cornerRadius(20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(iconColor.opacity(isHighlighted ? 0.42 : 0), lineWidth: 2)
+            )
+            .scaleEffect(isHighlighted ? 1.025 : 1)
+            .animation(.snappySpring, value: isHighlighted)
         }
         .buttonStyle(ProgressStatCardButtonStyle())
         .accessibilityLabel("\(value), \(label)")

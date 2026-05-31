@@ -18,6 +18,7 @@ final class StatisticsViewModel: ObservableObject {
     private let calendarSyncService: any CalendarSyncServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     @Published private(set) var statistics: StatisticsSnapshot
+    @Published private(set) var analyticsDelta: ProgressAnalyticsDelta?
 
     // MARK: - Init
 
@@ -31,7 +32,7 @@ final class StatisticsViewModel: ObservableObject {
         self.calendarSyncService = calendarSyncService
         self.statistics = StatisticsService.snapshot(tasks: repository.tasks)
         repository.changePublisher
-            .sink { [weak self] _ in self?.refreshStatistics() }
+            .sink { [weak self] _ in self?.refreshAnalytics() }
             .store(in: &cancellables)
     }
 
@@ -84,8 +85,22 @@ final class StatisticsViewModel: ObservableObject {
         syncSideEffects(for: updated)
     }
 
-    private func refreshStatistics() {
-        statistics = StatisticsService.snapshot(tasks: repository.tasks)
+    func refreshAnalytics() {
+        let previous = statistics
+        let current = StatisticsService.snapshot(tasks: repository.tasks)
+        statistics = current
+
+        let delta = ProgressAnalyticsDelta(previous: previous, current: current)
+        if delta.hasPositiveChanges {
+            analyticsDelta = delta
+        } else if previous != current {
+            analyticsDelta = nil
+        }
+    }
+
+    func consumeAnalyticsDelta(_ id: UUID) {
+        guard analyticsDelta?.id == id else { return }
+        analyticsDelta = nil
     }
 
     private func syncSideEffects(for task: Task) {
