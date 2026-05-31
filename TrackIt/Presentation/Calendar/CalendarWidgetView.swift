@@ -11,69 +11,72 @@ import SwiftUI
 struct CalendarWidgetView: View {
     @EnvironmentObject var vm: CalendarViewModel
     @Binding var isExpanded: Bool
+    @GestureState(resetTransaction: Transaction(animation: Constants.Gesture.animation)) private var dragTranslation: CGFloat = 0
 
     var body: some View {
+        let layout = currentLayout
+
         VStack(spacing: 0) {
-            if isExpanded {
+            ZStack(alignment: .top) {
+                WeekStripView()
+                    .environmentObject(vm)
+                    .opacity(layout.weekStripOpacity)
+                    .allowsHitTesting(!isExpanded)
+
                 expandedMonthGrid
-            } else {
-                WeekStripView().environmentObject(vm)
+                    .opacity(layout.monthGridOpacity)
+                    .allowsHitTesting(isExpanded)
             }
-            expandButton
+            .frame(height: layout.contentHeight, alignment: .top)
+            .clipped()
+
+            expansionHitArea
         }
         .cardStyle()
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .simultaneousGesture(calendarDragGesture)
+        .contentShape(Rectangle())
+        .simultaneousGesture(calendarExpansionDragGesture)
+        .animation(Constants.Gesture.animation, value: isExpanded)
     }
 
-    // MARK: - Expand Button
+    // MARK: - Expansion Hit Area
 
-    private var expandButton: some View {
-        Button {
-            withAnimation(.smoothSpring) {
-                setExpanded(!isExpanded)
+    private var expansionHitArea: some View {
+        Color.clear
+            .frame(height: Constants.Layout.expansionHitAreaHeight)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                toggleExpanded()
             }
-        } label: {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(.systemGray4))
-                .frame(width: 36, height: 5)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
+            .accessibilityLabel(isExpanded ? "Свернуть календарь" : "Раскрыть календарь")
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private func toggleExpanded() {
+        withAnimation(Constants.Gesture.animation) {
+            setExpanded(!isExpanded)
         }
     }
 
     // MARK: - Interactive Expansion
 
-    private var calendarDragGesture: some Gesture {
-        DragGesture(minimumDistance: Constants.dragMinimumDistance, coordinateSpace: .local)
+    private var calendarExpansionDragGesture: some Gesture {
+        DragGesture(minimumDistance: Constants.Gesture.dragMinimumDistance, coordinateSpace: .local)
+            .updating($dragTranslation) { value, state, transaction in
+                guard hasVerticalIntent(value) else { return }
+                transaction.disablesAnimations = true
+                state = clampedDragTranslation(value.translation.height)
+            }
             .onEnded { value in
-                settleDrag(value)
+                let target = expansionTarget(for: value)
+                guard target != isExpanded else { return }
+
+                withAnimation(Constants.Gesture.animation) {
+                    setExpanded(target)
+                }
             }
-    }
-
-    private func settleDrag(_ value: DragGesture.Value) {
-        let shouldChangeState = shouldSnapToOppositeState(value)
-        withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.86)) {
-            if shouldChangeState {
-                setExpanded(!isExpanded)
-            }
-        }
-    }
-
-    private func shouldSnapToOppositeState(_ value: DragGesture.Value) -> Bool {
-        guard isVerticalDrag(value) else { return false }
-
-        let translation = value.translation.height
-        let predictedTranslation = value.predictedEndTranslation.height
-
-        if isExpanded {
-            return translation < -Constants.snapDistance
-                || predictedTranslation < -Constants.predictedSnapDistance
-        } else {
-            return translation > Constants.snapDistance
-                || predictedTranslation > Constants.predictedSnapDistance
-        }
     }
 
     private func setExpanded(_ expanded: Bool) {
@@ -83,8 +86,75 @@ struct CalendarWidgetView: View {
         isExpanded = expanded
     }
 
-    private func isVerticalDrag(_ value: DragGesture.Value) -> Bool {
-        abs(value.translation.height) > abs(value.translation.width) * Constants.verticalDominanceRatio
+    private func hasVerticalIntent(_ value: DragGesture.Value) -> Bool {
+        let vertical = abs(value.translation.height)
+        let horizontal = abs(value.translation.width)
+        return vertical > horizontal
+    }
+
+    private func expansionTarget(for value: DragGesture.Value) -> Bool {
+        guard hasVerticalIntent(value) else { return isExpanded }
+
+        let intent = verticalIntent(for: value)
+
+        if isExpanded {
+            return intent < 0 ? false : true
+        } else {
+            return intent > 0 ? true : false
+        }
+    }
+
+    private func verticalIntent(for value: DragGesture.Value) -> CGFloat {
+        let actual = value.translation.height
+        let predicted = value.predictedEndTranslation.height
+
+        if actual == 0 {
+            return predicted
+        }
+
+        if actual * predicted > 0, abs(predicted) > abs(actual) {
+            return predicted
+        }
+
+        return actual
+    }
+
+    private var currentLayout: CalendarExpansionLayout {
+        let collapsedHeight = Constants.Layout.collapsedContentHeight
+        let expandedHeight = expandedContentHeight
+        let baseHeight = isExpanded ? expandedHeight : collapsedHeight
+        let contentHeight = (baseHeight + dragTranslation).clamped(to: collapsedHeight...expandedHeight)
+        let distance = max(expandedHeight - collapsedHeight, 1)
+        let progress = ((contentHeight - collapsedHeight) / distance).clamped(to: 0...1)
+
+        return CalendarExpansionLayout(
+            contentHeight: contentHeight,
+            monthGridOpacity: Double(progress),
+            weekStripOpacity: Double(1 - progress)
+        )
+    }
+
+    private var expandedContentHeight: CGFloat {
+        let rows = monthRowCount
+        let rowSpacing = CGFloat(max(rows - 1, 0)) * Constants.Layout.dayRowSpacing
+        return Constants.Layout.weekdayHeaderHeight + CGFloat(rows) * Constants.Layout.dayCellHeight + rowSpacing + Constants.Layout.dayRowSpacing
+    }
+
+    private var monthRowCount: Int {
+        let dayCount = RuDate.daysInMonth(year: vm.viewYear, month: vm.viewMonth)
+        let leadingEmptySlots = RuDate.firstWeekdayOfMonth(year: vm.viewYear, month: vm.viewMonth)
+        return max(1, (leadingEmptySlots + dayCount + 6) / 7)
+    }
+
+    private func clampedDragTranslation(_ translation: CGFloat) -> CGFloat {
+        let collapsedHeight = Constants.Layout.collapsedContentHeight
+        let expandedHeight = expandedContentHeight
+
+        if isExpanded {
+            return translation.clamped(to: (collapsedHeight - expandedHeight)...0)
+        } else {
+            return translation.clamped(to: 0...(expandedHeight - collapsedHeight))
+        }
     }
 
     // MARK: - Expanded Month Grid
@@ -109,7 +179,7 @@ struct CalendarWidgetView: View {
             LazyVGrid(columns: cols, spacing: 4) {
                 ForEach(0..<(le + dc), id: \.self) { index in
                     if index < le {
-                        Color.clear.frame(height: 44)
+                        Color.clear.frame(height: Constants.Layout.dayCellHeight)
                     } else {
                         let dayNum = index - le + 1
                         let date = RuDate.calendar.date(from: DateComponents(
@@ -123,22 +193,24 @@ struct CalendarWidgetView: View {
                         Button {
                             withAnimation(.snappySpring) { vm.selectDay(date) }
                         } label: {
-                            VStack(spacing: 2) {
+                            ZStack {
                                 Text("\(dayNum)")
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(isSelected ? .white : (isToday ? .brandAccent : Color(.label)))
                                 if count > 0 {
-                                    HStack(spacing: 1.5) {
+                                    HStack(spacing: Constants.Layout.taskDotSize / 2) {
                                         ForEach(0..<min(count, 3), id: \.self) { _ in
                                             Circle()
                                                 .fill(isSelected ? Color.white.opacity(0.7) : .brandAccent)
-                                                .frame(width: 4, height: 4)
+                                                .frame(width: Constants.Layout.taskDotSize, height: Constants.Layout.taskDotSize)
                                         }
                                     }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                                    .padding(.bottom, Constants.Layout.dayRowSpacing * 2)
                                 }
                             }
                             .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                            .frame(height: Constants.Layout.dayCellHeight)
                             .background(
                                 isSelected ? Color.brandAccent :
                                 (isToday ? Color.brandAccent.opacity(0.12) : Color(.systemGray6))
@@ -149,13 +221,29 @@ struct CalendarWidgetView: View {
                 }
             }
             .padding(.horizontal, 16)
+            .padding(.bottom, Constants.Layout.dayRowSpacing)
         }
     }
 
     private enum Constants {
-        static let dragMinimumDistance: CGFloat = 12
-        static let snapDistance: CGFloat = 52
-        static let predictedSnapDistance: CGFloat = 112
-        static let verticalDominanceRatio: CGFloat = 1.15
+        enum Gesture {
+            static let dragMinimumDistance: CGFloat = 6
+            static let animation = Animation.interactiveSpring()
+        }
+
+        enum Layout {
+            static let collapsedContentHeight: CGFloat = 62
+            static let weekdayHeaderHeight: CGFloat = 29
+            static let dayCellHeight: CGFloat = 44
+            static let dayRowSpacing: CGFloat = 4
+            static let taskDotSize: CGFloat = 3
+            static let expansionHitAreaHeight: CGFloat = 21
+        }
     }
+}
+
+private struct CalendarExpansionLayout {
+    let contentHeight: CGFloat
+    let monthGridOpacity: Double
+    let weekStripOpacity: Double
 }
