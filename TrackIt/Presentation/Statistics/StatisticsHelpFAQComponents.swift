@@ -12,17 +12,16 @@ struct FAQDisclosureRow: View {
     let isExpanded: Bool
     let action: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             answerText
         }
         .contentShape(Rectangle())
-        .onTapGesture(perform: action)
-        .transaction { transaction in
-            transaction.disablesAnimations = true
-            transaction.animation = nil
-        }
+        .onTapGesture(perform: toggle)
+        .animation(expandAnimation, value: isExpanded)
     }
 
     private var header: some View {
@@ -41,6 +40,8 @@ struct FAQDisclosureRow: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(.tertiaryLabel))
                 .frame(width: HelpRowLayout.chevronSize, height: HelpRowLayout.chevronSize)
+                .rotationEffect(.degrees(isExpanded ? Constants.expandedChevronRotation : Constants.collapsedChevronRotation))
+                .animation(expandAnimation, value: isExpanded)
         }
         .padding(.horizontal, HelpRowLayout.rowPadding)
         .frame(minHeight: HelpRowLayout.collapsedHeight, alignment: .center)
@@ -57,7 +58,32 @@ struct FAQDisclosureRow: View {
                 .padding(.leading, HelpRowLayout.textLeading)
                 .padding(.trailing, HelpRowLayout.answerTrailing)
                 .padding(.bottom, HelpRowLayout.answerBottomPadding)
+                .transition(answerTransition)
         }
+    }
+
+    private var expandAnimation: Animation {
+        reduceMotion ? Constants.reduceMotionAnimation : Constants.expandAnimation
+    }
+
+    private var answerTransition: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .opacity.combined(with: .offset(y: -Constants.answerVerticalOffset))
+    }
+
+    private func toggle() {
+        withAnimation(expandAnimation) {
+            action()
+        }
+    }
+
+    private enum Constants {
+        static let expandAnimation: Animation = .easeInOut(duration: 0.26)
+        static let reduceMotionAnimation: Animation = .easeInOut(duration: 0.16)
+        static let answerVerticalOffset: CGFloat = 6
+        static let collapsedChevronRotation = 0.0
+        static let expandedChevronRotation = 180.0
     }
 }
 
