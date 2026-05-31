@@ -14,13 +14,21 @@ final class StatisticsViewModel: ObservableObject {
     // MARK: - Зависимости
 
     private let repository: any TaskRepositoryProtocol
+    private let notificationService: any NotificationServiceProtocol
+    private let calendarSyncService: any CalendarSyncServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     @Published private(set) var statistics: StatisticsSnapshot
 
     // MARK: - Init
 
-    init(repository: any TaskRepositoryProtocol) {
+    init(
+        repository: any TaskRepositoryProtocol,
+        notificationService: any NotificationServiceProtocol,
+        calendarSyncService: any CalendarSyncServiceProtocol
+    ) {
         self.repository = repository
+        self.notificationService = notificationService
+        self.calendarSyncService = calendarSyncService
         self.statistics = StatisticsService.snapshot(tasks: repository.tasks)
         repository.changePublisher
             .sink { [weak self] _ in self?.refreshStatistics() }
@@ -71,7 +79,20 @@ final class StatisticsViewModel: ObservableObject {
         statistics.bestProductivityDay
     }
 
+    func markTaskIncomplete(_ task: Task) {
+        guard task.isCompleted, let updated = repository.toggle(task) else { return }
+        syncSideEffects(for: updated)
+    }
+
     private func refreshStatistics() {
         statistics = StatisticsService.snapshot(tasks: repository.tasks)
+    }
+
+    private func syncSideEffects(for task: Task) {
+        notificationService.syncNotification(for: task)
+        calendarSyncService.syncEvent(for: task) { [weak self] eventIdentifier in
+            guard task.calendarEventIdentifier != eventIdentifier else { return }
+            _ = self?.repository.updateCalendarEventIdentifier(eventIdentifier, for: task.id)
+        }
     }
 }

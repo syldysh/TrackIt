@@ -16,6 +16,7 @@ struct StatisticsDetailModalView: View {
     @ObservedObject var dragState: ModalDragState
     let onDismiss: () -> Void
     let onChangeDestination: (StatisticsDetailDestination) -> Void
+    let onMarkTaskIncomplete: (Task) -> Void
 
     private var maxContentHeight: CGFloat {
         UIScreen.main.bounds.height * 0.62
@@ -89,7 +90,11 @@ struct StatisticsDetailModalView: View {
         case .progress:
             StatisticsProgressDetailView(summary: snapshot.progress, supportText: progressSupportText)
         case .completedTasks:
-            StatisticsCompletedTasksDetailView(tasks: snapshot.completedTasks, periodTitle: periodTitle)
+            StatisticsCompletedTasksDetailView(
+                tasks: snapshot.completedTasks,
+                periodTitle: periodTitle,
+                onMarkTaskIncomplete: onMarkTaskIncomplete
+            )
         case .streak:
             StatisticsStreakDetailView(summary: snapshot.streak, supportText: streakSupportText)
         case .productivityTrend:

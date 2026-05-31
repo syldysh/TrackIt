@@ -61,6 +61,62 @@ final class ViewModelTaskOperationsTests: XCTestCase {
         XCTAssertEqual(repository.tasks.first?.isCompleted, true)
     }
 
+    func testMarkingCompletedTaskIncompleteFromStatisticsUpdatesSharedTaskAndSnapshot() {
+        let scheduledDate = RuDate.startOfDay(Date())
+        let task = TestTaskFactory.make(
+            title: "Done",
+            isCompleted: true,
+            dateScheduled: scheduledDate,
+            time: "09:00",
+            duration: 30,
+            reminderEnabled: true,
+            calendarSyncEnabled: true
+        )
+        let repository = MockTaskRepository(tasks: [task])
+        let notificationService = MockNotificationService()
+        let calendarSyncService = MockCalendarSyncService()
+        let viewModel = StatisticsViewModel(
+            repository: repository,
+            notificationService: notificationService,
+            calendarSyncService: calendarSyncService
+        )
+
+        viewModel.markTaskIncomplete(task)
+
+        let updatedTask = repository.tasks.first
+        XCTAssertEqual(repository.toggleCalls.map(\.id), [task.id])
+        XCTAssertEqual(updatedTask?.isCompleted, false)
+        XCTAssertEqual(updatedTask?.dateScheduled, scheduledDate)
+        XCTAssertEqual(updatedTask?.time, "09:00")
+        XCTAssertEqual(updatedTask?.duration, 30)
+        XCTAssertTrue(viewModel.completedTasks.isEmpty)
+        XCTAssertEqual(viewModel.completedCount, 0)
+        XCTAssertEqual(notificationService.syncedTasks.first?.isCompleted, false)
+        XCTAssertEqual(calendarSyncService.syncedTasks.first?.isCompleted, false)
+    }
+
+    func testMarkingIncompleteTaskIncompleteFromStatisticsDoesNothing() {
+        let task = TestTaskFactory.make(
+            title: "Active",
+            isCompleted: false,
+            dateScheduled: RuDate.startOfDay(Date())
+        )
+        let repository = MockTaskRepository(tasks: [task])
+        let notificationService = MockNotificationService()
+        let calendarSyncService = MockCalendarSyncService()
+        let viewModel = StatisticsViewModel(
+            repository: repository,
+            notificationService: notificationService,
+            calendarSyncService: calendarSyncService
+        )
+
+        viewModel.markTaskIncomplete(task)
+
+        XCTAssertTrue(repository.toggleCalls.isEmpty)
+        XCTAssertTrue(notificationService.syncedTasks.isEmpty)
+        XCTAssertTrue(calendarSyncService.syncedTasks.isEmpty)
+    }
+
     func testPinningTaskCallsRepositoryPin() {
         let task = TestTaskFactory.make(
             title: "Pin me",

@@ -125,7 +125,8 @@ struct StatisticsView: View {
                 streakSupportText: vm.streakSupportText,
                 dragState: progressModalDragState,
                 onDismiss: dismissModals,
-                onChangeDestination: changeActiveDetail
+                onChangeDestination: changeActiveDetail,
+                onMarkTaskIncomplete: vm.markTaskIncomplete
             )
             .padding(.horizontal, modalHorizontalPadding)
             .transition(.scale(scale: 0.92).combined(with: .opacity))
