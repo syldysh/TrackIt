@@ -94,7 +94,6 @@ final class AddTaskViewModel: ObservableObject {
         showAddTask = true
     }
 
-    // Тап по сетке дня без конкретной даты
     func prepareAddTaskAt(hour: Int, minute: Int) {
         prepareAddTask(selectedDate: newDate)
         showTimePicker = true
@@ -108,7 +107,6 @@ final class AddTaskViewModel: ObservableObject {
         timeDate = RuDate.calendar.date(from: comps) ?? Date()
     }
 
-    // Тап по сетке в модальном окне — конкретная дата
     func prepareAddTaskAt(hour: Int, minute: Int, date: Date) {
         editingTask = nil
         newDate = RuDate.startOfDay(date)
@@ -229,30 +227,5 @@ final class AddTaskViewModel: ObservableObject {
     func commitAddTask() {
         guard saveTaskFromForm() else { return }
         reset()
-    }
-
-    // MARK: - Сбросить форму
-
-    func hideForm() {
-        showAddTask = false
-    }
-
-    func clearFormState() {
-        editingTask = nil
-        newTitle = ""
-        showTimePicker = false
-        showDurationPicker = false
-        addDateMode = 0
-        newDuration = 0
-        newDate = RuDate.startOfDay(Date())
-        reminderEnabled = false
-        notificationPermissionMessage = nil
-        calendarSyncEnabled = false
-        calendarPermissionMessage = nil
-    }
-
-    func reset() {
-        hideForm()
-        clearFormState()
     }
 }
