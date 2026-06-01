@@ -9,6 +9,10 @@
 import SwiftUI
 import UIKit
 
+enum ModalDismissalTiming {
+    static let cleanupDelay: TimeInterval = 0.25
+}
+
 final class ModalDragState: ObservableObject {
     @Published private(set) var offset: CGFloat = 0
     @Published private(set) var isDragging = false
@@ -44,6 +48,19 @@ final class ModalDragState: ObservableObject {
         setOffset(0)
     }
 
+    func dismiss(onDismiss: @escaping () -> Void) {
+        guard !isDismissing else { return }
+        isDismissing = true
+        setDragging(false)
+        dismissKeyboard()
+        withAnimation(settleAnimation) {
+            offset = dismissalOffset
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + exitAnimationDuration) {
+            onDismiss()
+        }
+    }
+
     func dragGesture(onDismiss: @escaping () -> Void) -> some Gesture {
         DragGesture(minimumDistance: 6, coordinateSpace: .global)
             .onChanged { [weak self] value in
@@ -59,15 +76,10 @@ final class ModalDragState: ObservableObject {
                 let predictedDistance = max(value.predictedEndTranslation.height, 0)
 
                 if distance > dismissDistance || predictedDistance > predictedDismissDistance {
-                    isDismissing = true
-                    setDragging(false)
-                    dismissKeyboard()
-                    withAnimation(settleAnimation) {
-                        self.offset = max(distance, self.dismissalOffset)
+                    if distance > 0 {
+                        self.offset = max(distance, self.offset)
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + exitAnimationDuration) {
-                        onDismiss()
-                    }
+                    dismiss(onDismiss: onDismiss)
                 } else {
                     setDragging(false)
                     withAnimation(settleAnimation) {
@@ -110,7 +122,7 @@ struct ModalDimBackground: View {
             Color.black.opacity(Double(baseOpacity))
         }
             .opacity(Double(dragState.dimOpacityMultiplier))
-            .ignoresSafeArea()
+            .ignoresSafeArea(.container)
             .contentShape(Rectangle())
             .onTapGesture(perform: onTap)
             .transaction { transaction in

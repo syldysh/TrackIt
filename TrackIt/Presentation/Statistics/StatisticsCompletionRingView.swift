@@ -11,6 +11,7 @@ struct StatisticsCompletionRingView: View {
     let completionRate: Int
     let supportText: String
     let isNarrowScreen: Bool
+    let isHighlighted: Bool
     let action: () -> Void
 
     private var ringSize: CGFloat { isNarrowScreen ? 156 : 180 }
@@ -30,6 +31,12 @@ struct StatisticsCompletionRingView: View {
             .frame(maxWidth: .infinity)
             .background(Color(.systemBackground))
             .cornerRadius(24)
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.brandAccent.opacity(isHighlighted ? 0.38 : 0), lineWidth: 2)
+            )
+            .scaleEffect(isHighlighted ? 1.015 : 1)
+            .animation(.snappySpring, value: isHighlighted)
         }
         .buttonStyle(StatisticsCardButtonStyle())
         .accessibilityLabel("Прогресс \(completionRate) процентов")
@@ -50,6 +57,8 @@ struct StatisticsCompletionRingView: View {
                 Text("\(completionRate)%")
                     .font(.system(size: 44, weight: .bold))
                     .foregroundColor(.brandAccent)
+                    .scaleEffect(isHighlighted ? 1.06 : 1)
+                    .animation(.snappySpring, value: isHighlighted)
                 Text("Выполнено")
                     .font(.system(size: 14))
                     .foregroundColor(Color(.secondaryLabel))

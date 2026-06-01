@@ -29,7 +29,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             notificationService: notificationService,
             calendarSyncService: calendarSyncService
         )
-        let statisticsVM = StatisticsViewModel(repository: repository)
+        let statisticsVM = StatisticsViewModel(
+            repository: repository,
+            notificationService: notificationService,
+            calendarSyncService: calendarSyncService
+        )
 
         let calendarVC = makeHosted(CalendarView().environmentObject(calendarVM),     title: "Календарь",    image: "calendar")
         let inboxVC    = makeHosted(InboxView().environmentObject(inboxVM),           title: "Планировщик",  image: "tray")

@@ -30,6 +30,7 @@ struct WeekDayModal: View {
                 hourHeight: 44,
                 labelWidth: 38,
                 horizontalPadding: 12,
+                bottomScrollInset: 24,
                 idPrefix: "modal",
                 showCompleted: $showCompleted
             )

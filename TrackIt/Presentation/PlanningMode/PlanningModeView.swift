@@ -59,11 +59,20 @@ struct PlanningModeView: View {
 
                         cardSection
 
-                        Spacer(minLength: isCompactHeight ? 8 : 0)
-
                         PlanningSwipeHintView()
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, isCompactHeight ? 16 : 28)
+                            .padding(.horizontal, PlanningModeLayout.hintHorizontalPadding)
+                            .padding(
+                                .top,
+                                isCompactHeight
+                                    ? PlanningModeLayout.compactHintTopPadding
+                                    : PlanningModeLayout.regularHintTopPadding
+                            )
+
+                        Spacer(
+                            minLength: isCompactHeight
+                                ? PlanningModeLayout.compactBottomSpacing
+                                : PlanningModeLayout.regularBottomSpacing
+                        )
                     }
                 }
             }
@@ -206,4 +215,12 @@ struct PlanningModeView: View {
             state.fadeHighlightAfterDelay()
         }
     }
+}
+
+private enum PlanningModeLayout {
+    static let hintHorizontalPadding: CGFloat = 16
+    static let compactHintTopPadding: CGFloat = 30
+    static let regularHintTopPadding: CGFloat = 44
+    static let compactBottomSpacing: CGFloat = 16
+    static let regularBottomSpacing: CGFloat = 28
 }

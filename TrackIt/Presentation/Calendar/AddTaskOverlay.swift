@@ -14,33 +14,45 @@ struct AddTaskOverlay: View {
     var addFocused: FocusState<Bool>.Binding
     @ObservedObject var dragState: ModalDragState
     let onDismiss: () -> Void
+    let onBackgroundTap: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            sheetContent
-                .modalDragOffset(dragState)
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                backgroundTapArea
+                sheetContent(maxHeight: proxy.size.height * Constants.maxSheetHeightRatio)
+                    .modalDragOffset(dragState)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .ignoresSafeArea(edges: .bottom)
+        .ignoresSafeArea(.container, edges: .bottom)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 
     // MARK: - Sheet
 
-    private var sheetContent: some View {
+    private func sheetContent(maxHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
             dragArea
-            Group {
-                if shouldScrollForm {
-                    ScrollView { formFields }
-                } else {
-                    formFields
-                }
-            }
+            formScrollView
         }
         .fixedSize(horizontal: false, vertical: !shouldScrollForm)
-        .frame(maxHeight: shouldScrollForm ? UIScreen.main.bounds.height * 0.9 : nil)
+        .frame(height: shouldScrollForm ? maxHeight : nil)
         .background(Color(.systemBackground))
         .cornerRadius(20, corners: [.topLeft, .topRight])
+    }
+
+    private var formScrollView: some View {
+        ScrollView {
+            formFields
+        }
+        .scrollDismissesKeyboard(.immediately)
+    }
+
+    private var backgroundTapArea: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onBackgroundTap)
     }
 
     private var shouldScrollForm: Bool {
@@ -50,8 +62,12 @@ struct AddTaskOverlay: View {
 
     private let dateCalendarTopPadding: CGFloat = 16
 
+    private enum Constants {
+        static let maxSheetHeightRatio: CGFloat = 0.9
+    }
+
     private var dragArea: some View {
-        ModalDragHandle(dragState: dragState, onDismiss: dismiss) {
+        ModalDragHandle(dragState: dragState, onDismiss: onDismiss) {
             titleBar
         }
     }
@@ -199,8 +215,9 @@ struct AddTaskOverlay: View {
                     .cornerRadius(16)
             }
             Button {
-                formVM.commitAddTask()
+                guard formVM.saveTaskFromForm() else { return }
                 addFocused.wrappedValue = false
+                dismiss()
             } label: {
                 Text(formVM.editingTask != nil ? "Сохранить" : "Добавить")
                     .font(.system(size: 17, weight: .semibold))
@@ -222,6 +239,7 @@ struct AddTaskOverlay: View {
     // MARK: - Dismiss
 
     private func dismiss() {
-        onDismiss()
+        addFocused.wrappedValue = false
+        dragState.dismiss(onDismiss: onDismiss)
     }
 }

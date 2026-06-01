@@ -34,34 +34,81 @@ struct DayTimelineUntimedSection<RowContent: View>: View {
 struct DayTimelineHourGridView: View {
     let hourHeight: CGFloat
     let idPrefix: String
-    let onHourTap: (Int) -> Void
+    let onLongPressChanged: (CGFloat) -> Void
+    let onLongPressEnded: (CGFloat) -> Void
+    let onLongPressCancelled: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            ForEach(0..<24, id: \.self) { hour in
-                HStack(alignment: .top, spacing: 0) {
-                    Text(String(format: "%02d:00", hour))
-                        .font(.system(size: isCompact ? 10 : 11, weight: .medium))
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(width: isCompact ? 32 : 36, alignment: .trailing)
-                        .padding(.trailing, isCompact ? 6 : 8)
-                    VStack(spacing: 0) {
-                        Rectangle()
-                            .fill(Color(.separator).opacity(0.3))
-                            .frame(height: 0.5)
-                        Spacer(minLength: 0)
-                    }
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 0) {
+                ForEach(0..<Constants.hourCount, id: \.self) { hour in
+                    hourMarker(hour)
+                        .frame(height: hourHeight)
+                        .id("\(idPrefix)_hour_\(hour)")
+                        .contentShape(Rectangle())
                 }
-                .frame(height: hourHeight)
-                .id("\(idPrefix)_hour_\(hour)")
-                .contentShape(Rectangle())
-                .onTapGesture { onHourTap(hour) }
             }
+            bottomBoundaryMarker
+                .offset(y: timelineHeight - Constants.bottomBoundaryHeight)
+        }
+        .frame(height: timelineHeight, alignment: .top)
+        .contentShape(Rectangle())
+        .overlay {
+            DayTimelineLongPressOverlay(
+                minimumDuration: Constants.longPressDuration,
+                onBegan: onLongPressChanged,
+                onEnded: onLongPressEnded,
+                onCancelled: onLongPressCancelled
+            )
         }
     }
 
     private var isCompact: Bool {
         hourHeight < 60
+    }
+
+    private var timelineHeight: CGFloat {
+        CGFloat(Constants.hourCount) * hourHeight
+    }
+
+    private func hourMarker(_ hour: Int) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(hourLabel(for: hour))
+                .font(.system(size: isCompact ? 10 : 11, weight: .medium))
+                .foregroundColor(Color(.secondaryLabel))
+                .frame(width: isCompact ? 32 : 36, alignment: .trailing)
+                .padding(.trailing, isCompact ? 6 : 8)
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color(.separator).opacity(0.3))
+                    .frame(height: 0.5)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var bottomBoundaryMarker: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            Text(hourLabel(for: Constants.hourCount))
+                .font(.system(size: isCompact ? 10 : 11, weight: .medium))
+                .foregroundColor(Color(.secondaryLabel))
+                .frame(width: isCompact ? 32 : 36, alignment: .trailing)
+                .padding(.trailing, isCompact ? 6 : 8)
+            Rectangle()
+                .fill(Color(.separator).opacity(0.3))
+                .frame(height: 0.5)
+        }
+        .frame(height: Constants.bottomBoundaryHeight, alignment: .bottom)
+    }
+
+    private func hourLabel(for hour: Int) -> String {
+        String(format: "%02d:00", hour % Constants.hourCount)
+    }
+
+    private enum Constants {
+        static let hourCount = 24
+        static let bottomBoundaryHeight: CGFloat = 16
+        static let longPressDuration: TimeInterval = 0.45
     }
 }
 
@@ -73,13 +120,13 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
     let topOffset: CGFloat
     let isCompact: Bool
     let isDragging: Bool
-    let dragYOffset: CGFloat
     let labelWidth: CGFloat
     let showsActions: Bool
+    let timeTooltip: String?
     let actionsContent: () -> ActionsContent
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .topLeading) {
             DayTimelineTaskBlockView(
                 task: task,
                 time: time,
@@ -87,6 +134,14 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
                 height: blockHeight,
                 isCompact: isCompact
             )
+            if let timeTooltip {
+                DayTimelineTimeTooltipView(text: timeTooltip, isCompact: isCompact)
+                    .offset(x: isCompact ? 8 : 10, y: tooltipYOffset)
+                    .transition(.scale(scale: 0.96, anchor: .bottomLeading).combined(with: .opacity))
+                    .zIndex(1)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
             if showsActions {
                 actionsContent()
                     .transition(.scale.combined(with: .opacity))
@@ -94,8 +149,8 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
         }
         .padding(.leading, labelWidth)
         .padding(.trailing, 4)
-        .offset(y: topOffset + (isDragging ? dragYOffset : 0))
-        .scaleEffect(isDragging ? 1.04 : 1.0)
+        .offset(y: topOffset)
+        .scaleEffect(isDragging ? 1.03 : 1.0, anchor: .topLeading)
         .shadow(color: isDragging ? .black.opacity(0.2) : .clear, radius: 8, y: 4)
         .zIndex(zIndex)
         .animation(.dragFollow, value: isDragging)
@@ -103,6 +158,10 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
 
     private var zIndex: Double {
         isDragging ? 10 : (showsActions ? 5 : 0)
+    }
+
+    private var tooltipYOffset: CGFloat {
+        isCompact ? -18 : -20
     }
 }
 

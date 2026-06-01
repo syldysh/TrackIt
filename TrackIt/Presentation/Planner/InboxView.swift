@@ -33,9 +33,9 @@ struct InboxView: View {
                     .zIndex(10)
             } else {
                 mainContent
-                floatingButtons
+                inboxFloatingButtons
                 if vm.showAddModal {
-                    ModalDimBackground(dragState: addTaskDragState, baseOpacity: 0.3, onTap: dismissAdd)
+                    ModalDimBackground(dragState: addTaskDragState, baseOpacity: 0.3, onTap: dismissAddFromBackground)
                         .transition(.opacity)
                         .zIndex(19)
                 }
@@ -44,10 +44,11 @@ struct InboxView: View {
                         dragState: addTaskDragState,
                         inputFocused: $inputFocused,
                         onCommit: commit,
-                        onDismiss: dismissAdd
+                        onDismiss: { finishAddDismiss() },
+                        onBackgroundTap: dismissAddFromBackground
                     )
                     .environmentObject(vm)
-                        .transition(.move(edge: .bottom))
+                        .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .identity))
                         .zIndex(20)
                 }
                 if taskToSchedule != nil {
@@ -58,7 +59,8 @@ struct InboxView: View {
                     formVM: vm.taskEditorVM,
                     dragState: editTaskDragState,
                     inputFocused: $inputFocused,
-                    onDismiss: dismissTaskEditor
+                    onDismiss: finishTaskEditorDismiss,
+                    onBackgroundTap: dismissTaskEditorFromBackground
                 )
             }
         }
@@ -79,10 +81,15 @@ struct InboxView: View {
             GeometryReader { proxy in
                 ScrollView {
                     if vm.inboxTasks.isEmpty {
-                        emptyState
+                        InboxEmptyStateView(onAdd: openAddModal)
                             .frame(minHeight: proxy.size.height, alignment: .center)
                     } else {
-                        taskList
+                        InboxTaskListView(
+                            tasks: vm.inboxTasks,
+                            onSchedule: openScheduleSheet,
+                            onDelete: { vm.delete($0) },
+                            onEdit: openTaskEditor
+                        )
                     }
                 }
                 .scrollDisabled(vm.inboxTasks.isEmpty)
@@ -93,94 +100,12 @@ struct InboxView: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Button {
-                withAnimation(.sheetSpring) { vm.showAddModal = true }
-                inputFocused = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 72, height: 72)
-                    .background(Color.brandAccent)
-                    .clipShape(Circle())
-            }
-            Text("Нет задач")
-                .font(.system(size: 28, weight: .bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-            (Text("Нажмите + чтобы добавить задачу, а\nзатем запланируйте её с помощью ")
-                + Text(Image(systemName: "bolt.fill")).foregroundColor(.orange))
-                .font(.system(size: 17))
-                .foregroundColor(Color(.secondaryLabel))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-    }
-
-    private var taskList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("ЗАДАЧИ — \(vm.inboxTasks.count)")
-                .sectionHeaderStyle()
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
-
-            VStack(spacing: 0) {
-                ForEach(vm.inboxTasks) { task in
-                    InboxTaskRow(
-                        task: task,
-                        onSchedule: { openScheduleSheet(for: task) },
-                        onDelete: { vm.delete(task) },
-                        onEdit: { openTaskEditor(for: task) }
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-        .padding(.bottom, 100)
-    }
-
-    @ViewBuilder
-    private var floatingButtons: some View {
-        if !vm.inboxTasks.isEmpty {
-            VStack(spacing: 12) {
-                Spacer()
-                HStack {
-                    Spacer()
-                    VStack(spacing: 12) {
-                        Button {
-                            withAnimation(.sheetSpring) { showPlanningMode = true }
-                        } label: {
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 22))
-                                .foregroundColor(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Color.brandOrange)
-                                .clipShape(Circle())
-                                .shadow(color: .orange.opacity(0.35), radius: 12, y: 6)
-                        }
-                        Button {
-                            withAnimation(.sheetSpring) { vm.showAddModal = true }
-                            inputFocused = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Color.brandAccent)
-                                .clipShape(Circle())
-                                .shadow(color: .blue.opacity(0.35), radius: 12, y: 6)
-                        }
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 24)
-                }
-            }
-        }
+    private var inboxFloatingButtons: some View {
+        InboxFloatingButtons(
+            isVisible: !vm.inboxTasks.isEmpty,
+            onStartPlanning: { withAnimation(.sheetSpring) { showPlanningMode = true } },
+            onAdd: openAddModal
+        )
     }
 
     private var scheduleTaskSheet: some View {
@@ -194,17 +119,46 @@ struct InboxView: View {
         )
     }
 
-    private func commit() {
-        withAnimation(.sheetSpring) { vm.commitTask() }
-        inputFocused = false
+    private func openAddModal() {
+        withAnimation(.sheetSpring) { vm.showAddModal = true }
     }
 
-    private func dismissAdd() {
-        withAnimation(.sheetSpring) {
-            vm.showAddModal = false
-            vm.newText = ""
+    private func commit() {
+        guard let title = vm.trimmedDraftTitle else { return }
+        dismissAdd(clearDraftAfterClose: false) {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                vm.addInboxTask(title: title)
+                if !vm.showAddModal {
+                    vm.clearAddDraft()
+                }
+            }
         }
+    }
+
+    private func dismissAdd(clearDraftAfterClose: Bool = true, afterClose: (() -> Void)? = nil) {
         inputFocused = false
+        addTaskDragState.dismiss {
+            finishAddDismiss(clearDraftAfterClose: clearDraftAfterClose, afterClose: afterClose)
+        }
+    }
+
+    private func finishAddDismiss(clearDraftAfterClose: Bool = true, afterClose: (() -> Void)? = nil) {
+        vm.hideAddModal()
+        afterClose?()
+        guard clearDraftAfterClose else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + ModalDismissalTiming.cleanupDelay) {
+            guard !vm.showAddModal else { return }
+            vm.clearAddDraft()
+        }
+    }
+
+    private func dismissAddFromBackground() {
+        inputFocused = false
+        DispatchQueue.main.async {
+            dismissAdd()
+        }
     }
 
     private func openScheduleSheet(for task: Task) {
@@ -241,7 +195,22 @@ struct InboxView: View {
     }
 
     private func dismissTaskEditor() {
-        withAnimation(.sheetSpring) { vm.taskEditorVM.reset() }
         inputFocused = false
+        editTaskDragState.dismiss(onDismiss: finishTaskEditorDismiss)
+    }
+
+    private func finishTaskEditorDismiss() {
+        vm.taskEditorVM.hideForm()
+        DispatchQueue.main.asyncAfter(deadline: .now() + ModalDismissalTiming.cleanupDelay) {
+            guard !vm.taskEditorVM.showAddTask else { return }
+            vm.taskEditorVM.clearFormState()
+        }
+    }
+
+    private func dismissTaskEditorFromBackground() {
+        inputFocused = false
+        DispatchQueue.main.async {
+            dismissTaskEditor()
+        }
     }
 }

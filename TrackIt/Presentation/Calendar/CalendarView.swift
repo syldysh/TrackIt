@@ -40,12 +40,12 @@ struct CalendarView: View {
     @State private var showCompleted = false
     @State private var weekModalDate: Date? = nil
     @StateObject private var weekModalDragState = ModalDragState()
-    @StateObject private var addTaskDragState = ModalDragState()
+    @StateObject private var addTaskDragState = ModalDragState(dismissalOffset: UIScreen.main.bounds.height * 1.05)
     @FocusState private var addFocused: Bool
 
     var body: some View {
         ZStack {
-            Color(.secondarySystemBackground).ignoresSafeArea()
+            Color(.secondarySystemBackground).ignoresSafeArea(.container)
 
             VStack(spacing: 0) {
                 CalendarHeaderView(showViewMenu: $showViewMenu)
@@ -93,7 +93,7 @@ struct CalendarView: View {
 
             if vm.addTaskVM.showAddTask {
                 ModalDimBackground(dragState: addTaskDragState, baseOpacity: 0.3) {
-                    dismissAddTask()
+                    dismissAddTaskFromBackground()
                 }
                     .transition(.opacity)
                     .zIndex(19)
@@ -104,10 +104,11 @@ struct CalendarView: View {
                     formVM: vm.addTaskVM,
                     addFocused: $addFocused,
                     dragState: addTaskDragState,
-                    onDismiss: dismissAddTask
+                    onDismiss: finishAddTaskDismiss,
+                    onBackgroundTap: dismissAddTaskFromBackground
                 )
                     .environmentObject(vm)
-                    .transition(.move(edge: .bottom))
+                    .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .identity))
                     .zIndex(20)
             }
         }
@@ -219,7 +220,6 @@ struct CalendarView: View {
         withAnimation(.sheetSpring) {
             vm.addTaskVM.prepareAddTask(selectedDate: vm.selectedDate)
         }
-        addFocused = true
     }
 
     private func dismissWeekModal() {
@@ -227,7 +227,22 @@ struct CalendarView: View {
     }
 
     private func dismissAddTask() {
-        withAnimation(.sheetSpring) { vm.addTaskVM.reset() }
         addFocused = false
+        addTaskDragState.dismiss(onDismiss: finishAddTaskDismiss)
+    }
+
+    private func finishAddTaskDismiss() {
+        vm.addTaskVM.hideForm()
+        DispatchQueue.main.asyncAfter(deadline: .now() + ModalDismissalTiming.cleanupDelay) {
+            guard !vm.addTaskVM.showAddTask else { return }
+            vm.addTaskVM.clearFormState()
+        }
+    }
+
+    private func dismissAddTaskFromBackground() {
+        addFocused = false
+        DispatchQueue.main.async {
+            dismissAddTask()
+        }
     }
 }

@@ -14,16 +14,25 @@ final class StatisticsViewModel: ObservableObject {
     // MARK: - Зависимости
 
     private let repository: any TaskRepositoryProtocol
+    private let notificationService: any NotificationServiceProtocol
+    private let calendarSyncService: any CalendarSyncServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     @Published private(set) var statistics: StatisticsSnapshot
+    @Published private(set) var analyticsDelta: ProgressAnalyticsDelta?
 
     // MARK: - Init
 
-    init(repository: any TaskRepositoryProtocol) {
+    init(
+        repository: any TaskRepositoryProtocol,
+        notificationService: any NotificationServiceProtocol,
+        calendarSyncService: any CalendarSyncServiceProtocol
+    ) {
         self.repository = repository
+        self.notificationService = notificationService
+        self.calendarSyncService = calendarSyncService
         self.statistics = StatisticsService.snapshot(tasks: repository.tasks)
         repository.changePublisher
-            .sink { [weak self] _ in self?.refreshStatistics() }
+            .sink { [weak self] _ in self?.refreshAnalytics() }
             .store(in: &cancellables)
     }
 
@@ -71,7 +80,34 @@ final class StatisticsViewModel: ObservableObject {
         statistics.bestProductivityDay
     }
 
-    private func refreshStatistics() {
-        statistics = StatisticsService.snapshot(tasks: repository.tasks)
+    func markTaskIncomplete(_ task: Task) {
+        guard task.isCompleted, let updated = repository.toggle(task) else { return }
+        syncSideEffects(for: updated)
+    }
+
+    func refreshAnalytics() {
+        let previous = statistics
+        let current = StatisticsService.snapshot(tasks: repository.tasks)
+        statistics = current
+
+        let delta = ProgressAnalyticsDelta(previous: previous, current: current)
+        if delta.hasPositiveChanges {
+            analyticsDelta = delta
+        } else if previous != current {
+            analyticsDelta = nil
+        }
+    }
+
+    func consumeAnalyticsDelta(_ id: UUID) {
+        guard analyticsDelta?.id == id else { return }
+        analyticsDelta = nil
+    }
+
+    private func syncSideEffects(for task: Task) {
+        notificationService.syncNotification(for: task)
+        calendarSyncService.syncEvent(for: task) { [weak self] eventIdentifier in
+            guard task.calendarEventIdentifier != eventIdentifier else { return }
+            _ = self?.repository.updateCalendarEventIdentifier(eventIdentifier, for: task.id)
+        }
     }
 }

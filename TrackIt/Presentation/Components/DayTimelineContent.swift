@@ -11,21 +11,23 @@ import SwiftUI
 
 struct DayTimelineContent: View {
     @EnvironmentObject var vm: CalendarViewModel
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     let date: Date
     var hourHeight: CGFloat = 60
     var labelWidth: CGFloat = 44
     var horizontalPadding: CGFloat = 16
+    var bottomScrollInset: CGFloat = 72
     // Префикс для scroll-anchor ID (чтобы DayTimelineView и WeekDayModal не конфликтовали)
     var idPrefix: String = "day"
 
     @Binding var showCompleted: Bool
 
     // Перетаскивание задачи
-    @State private var draggingTaskID: UUID? = nil
-    @State private var dragYOffset: CGFloat = 0
+    @State var timelineDrag: DayTimelineDragState?
     // Кнопки действий (долгое нажатие без движения)
-    @State private var menuTaskID: UUID? = nil
+    @State var menuTaskID: UUID? = nil
+    @State var timelineDraft: DayTimelineDraft?
 
     // MARK: - Данные дня
 
@@ -51,13 +53,19 @@ struct DayTimelineContent: View {
                 untimedSection
                 hourGrid
                     .overlay(alignment: .topLeading) { taskBlocks }
+                    .overlay(alignment: .topLeading) { timelineDraftBlock }
                     .overlay(alignment: .topLeading) { nowLine }
                     .padding(.horizontal, horizontalPadding)
                 completedSection
-                Spacer().frame(height: 100)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: bottomScrollInset)
             }
             .onAppear { scrollToRelevant(proxy) }
             .onChange(of: date) { _, _ in scrollToRelevant(proxy) }
+            .onChange(of: vm.addTaskVM.showAddTask) { _, isPresented in
+                if !isPresented { clearTimelineDraft() }
+            }
         }
     }
 
@@ -73,13 +81,15 @@ struct DayTimelineContent: View {
         }
     }
 
-    // MARK: - Сетка 0–23
+    // MARK: - Сетка 00:00–24:00
 
     private var hourGrid: some View {
         DayTimelineHourGridView(
             hourHeight: hourHeight,
             idPrefix: idPrefix,
-            onHourTap: handleHourTap
+            onLongPressChanged: showTimelineDraft,
+            onLongPressEnded: finishTimelineDraft,
+            onLongPressCancelled: clearTimelineDraft
         )
     }
 
@@ -87,46 +97,12 @@ struct DayTimelineContent: View {
 
     private var taskBlocks: some View {
         ForEach(timedTasks) { task in
-            if let time = task.time, let (h, m) = parseTime(time) {
-                taskBlock(task, time: time, hour: h, minute: m)
-                .gesture(moveGesture(task: task, origH: h, origM: m))
+            if let interval = timelineInterval(for: task) {
+                taskBlock(task, interval: interval)
+                    .gesture(moveGesture(task: task, originalInterval: interval))
+                    .simultaneousGesture(menuGesture(task: task))
             }
         }
-    }
-
-    // MARK: - Перетаскивание
-
-    private func moveGesture(task: Task, origH: Int, origM: Int) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.3)
-            .sequenced(before: DragGesture(minimumDistance: 0))
-            .onChanged { value in
-                if case .second(true, let drag) = value, let drag = drag {
-                    if abs(drag.translation.height) > 5 {
-                        vm.isSwipingTask = true
-                        if menuTaskID != nil { withAnimation(.snappySpring) { menuTaskID = nil } }
-                        draggingTaskID = task.id
-                        dragYOffset = drag.translation.height
-                    }
-                }
-            }
-            .onEnded { value in
-                vm.isSwipingTask = false
-                if draggingTaskID == task.id, abs(dragYOffset) > 10 {
-                    let origMin = origH * 60 + origM
-                    let delta = Int(dragYOffset / hourHeight * 60)
-                    let snapped = ((origMin + delta) / 5 * 5).clamped(to: 0...1435)
-                    let newTime = String(format: "%02d:%02d", snapped / 60, snapped % 60)
-                    vm.setTime(newTime, for: task)
-                } else if draggingTaskID == nil {
-                    withAnimation(.snappySpring) {
-                        menuTaskID = (menuTaskID == task.id) ? nil : task.id
-                    }
-                }
-                withAnimation(.smoothSpring) {
-                    draggingTaskID = nil
-                    dragYOffset = 0
-                }
-            }
     }
 
     // MARK: - Кнопки действий
@@ -184,34 +160,25 @@ struct DayTimelineContent: View {
         )
     }
 
-    private func taskBlock(_ task: Task, time: String, hour: Int, minute: Int) -> some View {
-        let isDragging = draggingTaskID == task.id
+    private func taskBlock(_ task: Task, interval: DayTimelineInterval) -> some View {
+        let isDragging = timelineDrag?.taskID == task.id
+        let displayInterval = isDragging ? timelineDrag?.previewInterval ?? interval : interval
         return DayTimelinePositionedTaskBlock(
             task: task,
-            time: time,
-            duration: Int(task.duration),
-            blockHeight: blockHeight(for: task),
-            topOffset: topOffset(hour: hour, minute: minute),
+            time: timeString(from: displayInterval.startMinutes),
+            duration: displayInterval.durationMinutes,
+            blockHeight: blockHeight(for: displayInterval),
+            topOffset: topOffset(for: displayInterval),
             isCompact: hourHeight < 60,
             isDragging: isDragging,
-            dragYOffset: dragYOffset,
             labelWidth: labelWidth,
-            showsActions: menuTaskID == task.id
+            showsActions: menuTaskID == task.id,
+            timeTooltip: isDragging ? timeRangeText(for: displayInterval) : nil
         ) {
             actionButtons(for: task)
         }
         .onTapGesture {
             handleTaskTap(task)
-        }
-    }
-
-    private func handleHourTap(_ hour: Int) {
-        if menuTaskID != nil {
-            withAnimation(.snappySpring) { menuTaskID = nil }
-        } else {
-            withAnimation(.sheetSpring) {
-                vm.addTaskVM.prepareAddTaskAt(hour: hour, minute: 0, date: date)
-            }
         }
     }
 
@@ -221,22 +188,6 @@ struct DayTimelineContent: View {
         } else {
             withAnimation(.sheetSpring) { vm.addTaskVM.prepareEditTask(task) }
         }
-    }
-
-    private func topOffset(hour: Int, minute: Int) -> CGFloat {
-        CGFloat(hour) * hourHeight + CGFloat(minute) / 60.0 * hourHeight
-    }
-
-    private func blockHeight(for task: Task) -> CGFloat {
-        let duration = task.duration > 0 ? Int(task.duration) : 30
-        let minBlockHeight: CGFloat = hourHeight >= 60 ? 28 : 22
-        return max(CGFloat(duration) / 60.0 * hourHeight, minBlockHeight)
-    }
-
-    private func parseTime(_ time: String) -> (Int, Int)? {
-        let parts = time.split(separator: ":").compactMap { Int($0) }
-        guard let h = parts[safe: 0], let m = parts[safe: 1] else { return nil }
-        return (h, m)
     }
 
     private func scrollToRelevant(_ proxy: ScrollViewProxy) {
@@ -250,7 +201,8 @@ struct DayTimelineContent: View {
         }
         var hourCounts = [Int: Int]()
         for task in timedTasks {
-            if let time = task.time, let (h, _) = parseTime(time) {
+            if let startMinutes = startMinutes(for: task) {
+                let h = startMinutes / 60
                 hourCounts[h, default: 0] += 1
             }
         }

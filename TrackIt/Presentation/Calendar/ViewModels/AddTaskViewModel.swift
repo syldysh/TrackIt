@@ -48,7 +48,7 @@ final class AddTaskViewModel: ObservableObject {
     // MARK: - Вычисляемые свойства
 
     var canAddTask: Bool {
-        !newTitle.trimmingCharacters(in: .whitespaces).isEmpty
+        !newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var canShowReminderToggle: Bool {
@@ -66,6 +66,11 @@ final class AddTaskViewModel: ObservableObject {
     // MARK: - Открыть форму (новая задача)
 
     func prepareAddTask(selectedDate: Date) {
+        editingTask = nil
+        newTitle = ""
+        newDuration = 0
+        showDurationPicker = false
+
         let today = RuDate.startOfDay(Date())
         let tomorrow = RuDate.addDays(today, 1)
         if selectedDate >= today {
@@ -89,7 +94,6 @@ final class AddTaskViewModel: ObservableObject {
         showAddTask = true
     }
 
-    // Тап по сетке дня без конкретной даты
     func prepareAddTaskAt(hour: Int, minute: Int) {
         prepareAddTask(selectedDate: newDate)
         showTimePicker = true
@@ -103,13 +107,15 @@ final class AddTaskViewModel: ObservableObject {
         timeDate = RuDate.calendar.date(from: comps) ?? Date()
     }
 
-    // Тап по сетке в модальном окне — конкретная дата
     func prepareAddTaskAt(hour: Int, minute: Int, date: Date) {
+        editingTask = nil
         newDate = RuDate.startOfDay(date)
         addDateMode = 2
         showAddTask = true
         newTitle = ""
         showTimePicker = true
+        newDuration = 0
+        showDurationPicker = false
         reminderEnabled = false
         notificationPermissionMessage = nil
         calendarSyncEnabled = false
@@ -176,9 +182,10 @@ final class AddTaskViewModel: ObservableObject {
 
     // MARK: - Подтвердить (создать / обновить)
 
-    func commitAddTask() {
-        let title = newTitle.trimmingCharacters(in: .whitespaces)
-        guard !title.isEmpty else { return }
+    @discardableResult
+    func saveTaskFromForm() -> Bool {
+        let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return false }
         let timeStr: String? = showTimePicker
             ? String(format: "%02d:%02d",
                      RuDate.calendar.component(.hour, from: timeDate),
@@ -214,23 +221,11 @@ final class AddTaskViewModel: ObservableObject {
             )
             syncSideEffects(for: created)
         }
-        reset()
+        return true
     }
 
-    // MARK: - Сбросить форму
-
-    func reset() {
-        showAddTask = false
-        editingTask = nil
-        newTitle = ""
-        showTimePicker = false
-        showDurationPicker = false
-        addDateMode = 0
-        newDuration = 0
-        newDate = RuDate.startOfDay(Date())
-        reminderEnabled = false
-        notificationPermissionMessage = nil
-        calendarSyncEnabled = false
-        calendarPermissionMessage = nil
+    func commitAddTask() {
+        guard saveTaskFromForm() else { return }
+        reset()
     }
 }

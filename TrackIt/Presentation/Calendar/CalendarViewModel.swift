@@ -134,6 +134,28 @@ final class CalendarViewModel: ObservableObject {
         syncSideEffects(for: updated)
     }
 
+    func updateTaskInterval(taskID: UUID, date: Date, startMinutes: Int, endMinutes: Int) {
+        guard let task = repository.tasks.first(where: { $0.id == taskID }) else { return }
+        let duration = max(
+            endMinutes - startMinutes,
+            DayTimelineMetrics.Defaults.minimumDurationMinutes
+        )
+        guard let updated = repository.update(
+            task,
+            title: task.title,
+            date: RuDate.startOfDay(date),
+            time: Self.timeString(fromMinutes: startMinutes),
+            duration: Int16(duration),
+            reminderEnabled: task.reminderEnabled,
+            calendarSyncEnabled: task.calendarSyncEnabled
+        ) else { return }
+        syncSideEffects(for: updated)
+    }
+
+    private static func timeString(fromMinutes minutes: Int) -> String {
+        String(format: "%02d:%02d", minutes / 60, minutes % 60)
+    }
+
     private func syncSideEffects(for task: Task) {
         notificationService.syncNotification(for: task)
         calendarSyncService.syncEvent(for: task) { [weak self] eventIdentifier in
