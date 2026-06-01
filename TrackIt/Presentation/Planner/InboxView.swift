@@ -18,6 +18,10 @@ struct InboxView: View {
     @State private var taskToSchedule: Task?
     @FocusState private var inputFocused: Bool
 
+    private var inboxTaskAnimationFingerprint: [UUID] {
+        vm.inboxTasks.map(\.id)
+    }
+
     var body: some View {
         ZStack {
             if showPlanningMode {
@@ -93,6 +97,7 @@ struct InboxView: View {
                     }
                 }
                 .scrollDisabled(vm.inboxTasks.isEmpty)
+                .animation(.smoothSpring, value: inboxTaskAnimationFingerprint)
             }
             .background(Color(.secondarySystemBackground))
             .navigationTitle("Планировщик")
@@ -126,13 +131,9 @@ struct InboxView: View {
     private func commit() {
         guard let title = vm.trimmedDraftTitle else { return }
         dismissAdd(clearDraftAfterClose: false) {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                vm.addInboxTask(title: title)
-                if !vm.showAddModal {
-                    vm.clearAddDraft()
-                }
+            vm.addInboxTask(title: title)
+            if !vm.showAddModal {
+                vm.clearAddDraft()
             }
         }
     }
