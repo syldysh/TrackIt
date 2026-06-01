@@ -45,7 +45,7 @@ struct WeekDayModal: View {
     // MARK: - Drag Area
 
     private var dragArea: some View {
-        ModalDragHandle(dragState: dragState, showsDragHandle: true, onDismiss: onDismiss) {
+        ModalDragHandle(dragState: dragState, onDismiss: onDismiss) {
             header
         }
     }

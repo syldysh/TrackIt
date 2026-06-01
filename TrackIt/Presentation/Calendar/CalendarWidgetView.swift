@@ -43,7 +43,14 @@ struct CalendarWidgetView: View {
     // MARK: - Expansion Hit Area
 
     private var expansionHitArea: some View {
-        Color.clear
+        ZStack {
+            RoundedRectangle(cornerRadius: Constants.Layout.dragHandleCornerRadius)
+                .fill(Color(.systemGray4))
+                .frame(
+                    width: Constants.Layout.dragHandleWidth,
+                    height: Constants.Layout.dragHandleHeight
+                )
+        }
             .frame(height: Constants.Layout.expansionHitAreaHeight)
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -238,6 +245,9 @@ struct CalendarWidgetView: View {
             static let dayRowSpacing: CGFloat = 4
             static let taskDotSize: CGFloat = 3
             static let expansionHitAreaHeight: CGFloat = 21
+            static let dragHandleWidth: CGFloat = 36
+            static let dragHandleHeight: CGFloat = 5
+            static let dragHandleCornerRadius: CGFloat = 3
         }
     }
 }
