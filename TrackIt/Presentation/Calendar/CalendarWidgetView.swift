@@ -30,7 +30,7 @@ struct CalendarWidgetView: View {
             .frame(height: layout.contentHeight, alignment: .top)
             .clipped()
 
-            expansionHitArea
+            expansionHitArea(expansionProgress: layout.expansionProgress)
         }
         .cardStyle()
         .padding(.horizontal, 16)
@@ -42,14 +42,9 @@ struct CalendarWidgetView: View {
 
     // MARK: - Expansion Hit Area
 
-    private var expansionHitArea: some View {
+    private func expansionHitArea(expansionProgress: CGFloat) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: Constants.Layout.dragHandleCornerRadius)
-                .fill(Color(.systemGray4))
-                .frame(
-                    width: Constants.Layout.dragHandleWidth,
-                    height: Constants.Layout.dragHandleHeight
-                )
+            dragHandle(expansionProgress: expansionProgress)
         }
             .frame(height: Constants.Layout.expansionHitAreaHeight)
             .frame(maxWidth: .infinity)
@@ -136,9 +131,32 @@ struct CalendarWidgetView: View {
 
         return CalendarExpansionLayout(
             contentHeight: contentHeight,
+            expansionProgress: progress,
             monthGridOpacity: Double(progress),
             weekStripOpacity: Double(1 - progress)
         )
+    }
+
+    private func dragHandle(expansionProgress: CGFloat) -> some View {
+        let progress = Double(expansionProgress)
+        let angle = Constants.Layout.dragHandleAngle * (1 - 2 * progress)
+
+        return HStack(spacing: Constants.Layout.dragHandleSegmentSpacing) {
+            dragHandleSegment
+                .rotationEffect(.degrees(angle), anchor: .trailing)
+            dragHandleSegment
+                .rotationEffect(.degrees(-angle), anchor: .leading)
+        }
+        .animation(Constants.Gesture.animation, value: expansionProgress)
+    }
+
+    private var dragHandleSegment: some View {
+        RoundedRectangle(cornerRadius: Constants.Layout.dragHandleCornerRadius)
+            .fill(Color(.systemGray4))
+            .frame(
+                width: Constants.Layout.dragHandleSegmentWidth,
+                height: Constants.Layout.dragHandleHeight
+            )
     }
 
     private var expandedContentHeight: CGFloat {
@@ -245,15 +263,18 @@ struct CalendarWidgetView: View {
             static let dayRowSpacing: CGFloat = 4
             static let taskDotSize: CGFloat = 3
             static let expansionHitAreaHeight: CGFloat = 21
-            static let dragHandleWidth: CGFloat = 36
+            static let dragHandleSegmentWidth: CGFloat = 20
             static let dragHandleHeight: CGFloat = 5
             static let dragHandleCornerRadius: CGFloat = 3
+            static let dragHandleSegmentSpacing: CGFloat = -4
+            static let dragHandleAngle: Double = 7
         }
     }
 }
 
 private struct CalendarExpansionLayout {
     let contentHeight: CGFloat
+    let expansionProgress: CGFloat
     let monthGridOpacity: Double
     let weekStripOpacity: Double
 }
