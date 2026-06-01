@@ -87,13 +87,13 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
     let topOffset: CGFloat
     let isCompact: Bool
     let isDragging: Bool
-    let dragYOffset: CGFloat
     let labelWidth: CGFloat
     let showsActions: Bool
+    let timeTooltip: String?
     let actionsContent: () -> ActionsContent
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .topLeading) {
             DayTimelineTaskBlockView(
                 task: task,
                 time: time,
@@ -101,6 +101,14 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
                 height: blockHeight,
                 isCompact: isCompact
             )
+            if let timeTooltip {
+                DayTimelineTimeTooltipView(text: timeTooltip, isCompact: isCompact)
+                    .offset(x: isCompact ? 8 : 10, y: tooltipYOffset)
+                    .transition(.scale(scale: 0.96, anchor: .bottomLeading).combined(with: .opacity))
+                    .zIndex(1)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
             if showsActions {
                 actionsContent()
                     .transition(.scale.combined(with: .opacity))
@@ -108,8 +116,8 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
         }
         .padding(.leading, labelWidth)
         .padding(.trailing, 4)
-        .offset(y: topOffset + (isDragging ? dragYOffset : 0))
-        .scaleEffect(isDragging ? 1.04 : 1.0)
+        .offset(y: topOffset)
+        .scaleEffect(isDragging ? 1.03 : 1.0, anchor: .topLeading)
         .shadow(color: isDragging ? .black.opacity(0.2) : .clear, radius: 8, y: 4)
         .zIndex(zIndex)
         .animation(.dragFollow, value: isDragging)
@@ -117,6 +125,10 @@ struct DayTimelinePositionedTaskBlock<ActionsContent: View>: View {
 
     private var zIndex: Double {
         isDragging ? 10 : (showsActions ? 5 : 0)
+    }
+
+    private var tooltipYOffset: CGFloat {
+        isCompact ? -18 : -20
     }
 }
 
