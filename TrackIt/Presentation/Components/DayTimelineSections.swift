@@ -34,7 +34,9 @@ struct DayTimelineUntimedSection<RowContent: View>: View {
 struct DayTimelineHourGridView: View {
     let hourHeight: CGFloat
     let idPrefix: String
-    let onLongPress: (CGFloat) -> Void
+    let onLongPressChanged: (CGFloat) -> Void
+    let onLongPressEnded: (CGFloat) -> Void
+    let onLongPressCancelled: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,20 +60,18 @@ struct DayTimelineHourGridView: View {
             }
         }
         .contentShape(Rectangle())
-        .gesture(longPressGesture)
+        .overlay {
+            DayTimelineLongPressOverlay(
+                minimumDuration: Constants.longPressDuration,
+                onBegan: onLongPressChanged,
+                onEnded: onLongPressEnded,
+                onCancelled: onLongPressCancelled
+            )
+        }
     }
 
     private var isCompact: Bool {
         hourHeight < 60
-    }
-
-    private var longPressGesture: some Gesture {
-        LongPressGesture(minimumDuration: Constants.longPressDuration)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
-            .onEnded { value in
-                guard case .second(true, let drag?) = value else { return }
-                onLongPress(drag.startLocation.y)
-            }
     }
 
     private enum Constants {

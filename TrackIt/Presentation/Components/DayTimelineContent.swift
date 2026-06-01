@@ -11,6 +11,7 @@ import SwiftUI
 
 struct DayTimelineContent: View {
     @EnvironmentObject var vm: CalendarViewModel
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     let date: Date
     var hourHeight: CGFloat = 60
@@ -25,7 +26,8 @@ struct DayTimelineContent: View {
     @State private var draggingTaskID: UUID? = nil
     @State private var dragYOffset: CGFloat = 0
     // Кнопки действий (долгое нажатие без движения)
-    @State private var menuTaskID: UUID? = nil
+    @State var menuTaskID: UUID? = nil
+    @State var timelineDraft: DayTimelineDraft?
 
     // MARK: - Данные дня
 
@@ -51,6 +53,7 @@ struct DayTimelineContent: View {
                 untimedSection
                 hourGrid
                     .overlay(alignment: .topLeading) { taskBlocks }
+                    .overlay(alignment: .topLeading) { timelineDraftBlock }
                     .overlay(alignment: .topLeading) { nowLine }
                     .padding(.horizontal, horizontalPadding)
                 completedSection
@@ -58,6 +61,9 @@ struct DayTimelineContent: View {
             }
             .onAppear { scrollToRelevant(proxy) }
             .onChange(of: date) { _, _ in scrollToRelevant(proxy) }
+            .onChange(of: vm.addTaskVM.showAddTask) { _, isPresented in
+                if !isPresented { clearTimelineDraft() }
+            }
         }
     }
 
@@ -79,7 +85,9 @@ struct DayTimelineContent: View {
         DayTimelineHourGridView(
             hourHeight: hourHeight,
             idPrefix: idPrefix,
-            onLongPress: handleGridLongPress
+            onLongPressChanged: showTimelineDraft,
+            onLongPressEnded: finishTimelineDraft,
+            onLongPressCancelled: clearTimelineDraft
         )
     }
 
@@ -202,17 +210,6 @@ struct DayTimelineContent: View {
         }
         .onTapGesture {
             handleTaskTap(task)
-        }
-    }
-
-    private func handleGridLongPress(atY y: CGFloat) {
-        if menuTaskID != nil {
-            withAnimation(.snappySpring) { menuTaskID = nil }
-        } else {
-            let interval = DayTimelineMetrics(hourHeight: hourHeight).defaultInterval(forY: y)
-            withAnimation(.sheetSpring) {
-                vm.addTaskVM.prepareAddTask(on: date, interval: interval)
-            }
         }
     }
 
