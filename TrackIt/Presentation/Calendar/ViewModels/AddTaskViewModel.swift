@@ -48,7 +48,7 @@ final class AddTaskViewModel: ObservableObject {
     // MARK: - Вычисляемые свойства
 
     var canAddTask: Bool {
-        !newTitle.trimmingCharacters(in: .whitespaces).isEmpty
+        !newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var canShowReminderToggle: Bool {
@@ -186,7 +186,7 @@ final class AddTaskViewModel: ObservableObject {
 
     @discardableResult
     func saveTaskFromForm() -> Bool {
-        let title = newTitle.trimmingCharacters(in: .whitespaces)
+        let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return false }
         let timeStr: String? = showTimePicker
             ? String(format: "%02d:%02d",

@@ -10,6 +10,7 @@ import SwiftUI
 struct StatisticsCompletedTasksDetailView: View {
     let tasks: [Task]
     let periodTitle: String
+    let onMarkTaskIncomplete: (Task) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -19,7 +20,10 @@ struct StatisticsCompletedTasksDetailView: View {
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(tasks) { task in
-                        CompletedTaskSummaryRow(task: task)
+                        CompletedTaskSummaryRow(
+                            task: task,
+                            onMarkIncomplete: { onMarkTaskIncomplete(task) }
+                        )
                     }
                 }
             }
@@ -63,32 +67,39 @@ struct StatisticsCompletedTasksDetailView: View {
 
 private struct CompletedTaskSummaryRow: View {
     let task: Task
+    let onMarkIncomplete: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white)
-                .frame(width: 28, height: 28)
-                .background(Color.brandGreen)
-                .clipShape(Circle())
+        Button {
+            withAnimation(.smoothSpring) { onMarkIncomplete() }
+        } label: {
+            HStack(spacing: 12) {
+                TaskCompletionIndicatorView(isCompleted: true)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(task.title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Color(.label))
-                    .lineLimit(2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(task.title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(Color(.label))
+                        .lineLimit(2)
 
-                Text(detailText)
-                    .font(.system(size: 12))
+                    Text(detailText)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "arrow.uturn.backward.circle")
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(Color(.secondaryLabel))
             }
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(Color(.secondarySystemBackground))
         .cornerRadius(16)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Вернуть задачу \(task.title) в невыполненные")
     }
 
     private var detailText: String {

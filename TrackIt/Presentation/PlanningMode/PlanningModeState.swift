@@ -17,8 +17,8 @@ final class PlanningModeState: ObservableObject {
     @Published private var highlightProgress: CGFloat = 0
     @Published private var highlightOpacity: Double = 0
 
-    private static let highlightFadeDelay: TimeInterval = 0.25
-    private static let highlightFadeDuration: TimeInterval = 0.28
+    private static let highlightFadeDelay: TimeInterval = 0.12
+    private static let highlightFadeDuration: TimeInterval = 0.18
 
     private var clearHighlightTask: DispatchWorkItem?
     private var highlightResetID = UUID()

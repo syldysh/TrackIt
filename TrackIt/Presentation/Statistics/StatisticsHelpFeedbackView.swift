@@ -72,15 +72,10 @@ struct StatisticsHelpFeedbackView: View {
     }
 
     private func toggleFAQ(_ id: String) {
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-
-        withTransaction(transaction) {
-            if expandedFAQIDs.contains(id) {
-                expandedFAQIDs.remove(id)
-            } else {
-                expandedFAQIDs.insert(id)
-            }
+        if expandedFAQIDs.contains(id) {
+            expandedFAQIDs.remove(id)
+        } else {
+            expandedFAQIDs.insert(id)
         }
     }
 

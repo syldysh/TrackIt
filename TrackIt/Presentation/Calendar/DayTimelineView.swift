@@ -22,6 +22,7 @@ struct DayTimelineView: View {
                 hourHeight: 60,
                 labelWidth: 44,
                 horizontalPadding: 16,
+                bottomScrollInset: 72,
                 idPrefix: "day",
                 showCompleted: $showCompleted
             )

@@ -20,7 +20,7 @@ struct PlanningFinishedStateView: View {
     var body: some View {
         ZStack {
             if confettiVisible && !reduceMotion {
-                PlannerCompletionConfettiView()
+                CompletionConfettiView()
                     .transition(.opacity)
             }
 

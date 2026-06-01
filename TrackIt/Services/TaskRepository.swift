@@ -15,11 +15,12 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
     // MARK: - Публичное состояние (domain-модели, без NSManagedObject)
 
     @Published var tasks: [Task] = []
+    private let changes = PassthroughSubject<Void, Never>()
 
-    // Публикатор изменений для VM — абстракция над objectWillChange.
+    // Публикатор изменений для VM — отправляется после обновления domain-массива.
     // VM подписываются на него, не зная про ObservableObject.
     var changePublisher: AnyPublisher<Void, Never> {
-        objectWillChange.map { _ in () }.eraseToAnyPublisher()
+        changes.eraseToAnyPublisher()
     }
 
     // MARK: - Приватные зависимости
@@ -68,6 +69,7 @@ final class TaskRepository: ObservableObject, TaskRepositoryProtocol {
         ]
         taskItems = (try? context.fetch(request)) ?? []
         tasks = taskItems.map(map)
+        changes.send()
     }
 
     // MARK: - Вычисляемые свойства
