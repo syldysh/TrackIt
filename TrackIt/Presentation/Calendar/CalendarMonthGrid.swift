@@ -8,36 +8,56 @@
 import Foundation
 
 struct CalendarMonthGrid {
-    let weeks: [[Date]]
+    struct Day: Identifiable, Hashable {
+        let id: Int
+        let date: Date?
+    }
+
+    let weeks: [[Day]]
 
     init(year: Int, month: Int) {
-        let firstDayComponents = DateComponents(year: year, month: month + 1, day: 1)
-        guard let firstDay = RuDate.calendar.date(from: firstDayComponents) else {
+        let dayCount = RuDate.daysInMonth(year: year, month: month)
+        let leadingEmptySlots = RuDate.firstWeekdayOfMonth(year: year, month: month)
+        let cellCount = ((leadingEmptySlots + dayCount + Constants.weekLength - 1) / Constants.weekLength) * Constants.weekLength
+
+        guard cellCount > 0 else {
             self.weeks = []
             return
         }
 
-        let gridStart = RuDate.weekStart(for: firstDay)
-        let dayCount = RuDate.daysInMonth(year: year, month: month)
-        let lastDay = RuDate.addDays(firstDay, dayCount - 1)
-        let gridEnd = RuDate.addDays(RuDate.weekStart(for: lastDay), Constants.weekLength - 1)
-        let totalDays = RuDate.calendar.dateComponents([.day], from: gridStart, to: gridEnd).day ?? Constants.weekLength - 1
+        let days = (0..<cellCount).map { index in
+            let dayNumber = index - leadingEmptySlots + 1
+            let date = Self.makeDate(year: year, month: month, day: dayNumber, dayCount: dayCount)
+            return Day(id: index, date: date)
+        }
 
-        self.weeks = stride(from: 0, through: totalDays, by: Constants.weekLength).map { weekOffset in
-            (0..<Constants.weekLength).map { dayOffset in
-                RuDate.addDays(gridStart, weekOffset + dayOffset)
-            }
+        self.weeks = stride(from: 0, to: days.count, by: Constants.weekLength).map { startIndex in
+            Array(days[startIndex..<min(startIndex + Constants.weekLength, days.count)])
         }
     }
 
-    var days: [Date] {
+    private static func makeDate(year: Int, month: Int, day: Int, dayCount: Int) -> Date? {
+        guard (1...dayCount).contains(day) else { return nil }
+        return RuDate.calendar.date(
+            from: DateComponents(
+                year: year,
+                month: month + 1,
+                day: day
+            )
+        ).map(RuDate.startOfDay)
+    }
+
+    var days: [Day] {
         weeks.flatMap { $0 }
     }
 
     func selectedWeekIndex(for selectedDate: Date) -> Int {
         let selectedString = RuDate.isoString(from: selectedDate)
         return weeks.firstIndex { week in
-            week.contains { RuDate.isoString(from: $0) == selectedString }
+            week.contains { day in
+                guard let date = day.date else { return false }
+                return RuDate.isoString(from: date) == selectedString
+            }
         } ?? 0
     }
 
