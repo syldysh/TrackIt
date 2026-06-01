@@ -29,9 +29,11 @@ struct ProgressStatCardView: View {
                     )
                 Text(value)
                     .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(Color(.label))
+                    .foregroundColor(isHighlighted ? iconColor : Color(.label))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
+                    .contentTransition(.numericText())
+                    .scaleEffect(isHighlighted ? Constants.valueHighlightScale : 1)
                 Text(label)
                     .font(.system(size: 13))
                     .foregroundColor(Color(.secondaryLabel))
@@ -46,11 +48,21 @@ struct ProgressStatCardView: View {
                 RoundedRectangle(cornerRadius: 20)
                     .stroke(iconColor.opacity(isHighlighted ? 0.42 : 0), lineWidth: 2)
             )
-            .scaleEffect(isHighlighted ? 1.025 : 1)
-            .animation(.snappySpring, value: isHighlighted)
+            .shadow(color: iconColor.opacity(isHighlighted ? Constants.highlightShadowOpacity : 0), radius: 10, y: 4)
+            .scaleEffect(isHighlighted ? Constants.cardHighlightScale : 1)
+            .animation(Constants.highlightAnimation, value: isHighlighted)
+            .animation(Constants.valueAnimation, value: value)
         }
         .buttonStyle(ProgressStatCardButtonStyle())
         .accessibilityLabel("\(value), \(label)")
+    }
+
+    private enum Constants {
+        static let cardHighlightScale: CGFloat = 1.03
+        static let valueHighlightScale: CGFloat = 1.08
+        static let highlightShadowOpacity = 0.18
+        static let highlightAnimation = Animation.interactiveSpring(response: 0.34, dampingFraction: 0.72)
+        static let valueAnimation = Animation.easeOut(duration: 0.28)
     }
 }
 

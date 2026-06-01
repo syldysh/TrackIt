@@ -8,11 +8,15 @@
 import SwiftUI
 
 struct StatisticsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject var vm: StatisticsViewModel
     @State private var activeDetail: StatisticsDetailDestination? = nil
     @State private var highlightedFields = Set<ProgressAnalyticsField>()
     @State private var celebrationID: UUID?
-    @State private var resetAnimationWorkItem: DispatchWorkItem?
+    @State private var resetAnimationTask: _Concurrency.Task<Void, Never>?
+    @State private var hasShownInitialStatistics = false
+    @State private var isVisible = false
+    @State private var displayedCompletionRate: Double = 0
     @StateObject private var progressModalDragState = ModalDragState()
     private let applicationInfo = AppInfoProvider.current()
 
@@ -26,6 +30,7 @@ struct StatisticsView: View {
                     VStack(spacing: 16) {
                         StatisticsCompletionRingView(
                             completionRate: vm.completionRate,
+                            displayedCompletionRate: displayedCompletionRate,
                             supportText: vm.progressSupportText,
                             isNarrowScreen: isNarrowScreen,
                             isHighlighted: highlightedFields.contains(.completionRate),
@@ -37,8 +42,8 @@ struct StatisticsView: View {
                             isNarrowScreen: isNarrowScreen,
                             action: { openDetail(.productivityTrend) }
                         )
-                        settingsSection
-                        appInfo
+                        SettingsSectionView()
+                        StatisticsAppInfoView(applicationInfo: applicationInfo)
                     }
                     .padding(16)
                 }
@@ -52,8 +57,11 @@ struct StatisticsView: View {
             progressModalOverlay
         }
         .background(TabBarHider(hide: activeDetail != nil))
-        .onAppear(perform: refreshAndPlayPendingAnimations)
-        .onDisappear(perform: cancelPendingAnimationReset)
+        .onAppear(perform: handleAppear)
+        .onDisappear(perform: handleDisappear)
+        .onChange(of: vm.completionRate) { _, newValue in
+            animateCompletionRate(to: newValue, emphasized: false)
+        }
         .onChange(of: vm.analyticsDelta?.id) { _, _ in
             playAnalyticsDeltaIfNeeded(vm.analyticsDelta)
         }
@@ -106,26 +114,6 @@ struct StatisticsView: View {
         }
     }
 
-    // MARK: - Settings
-
-    private var settingsSection: some View {
-        SettingsSectionView()
-    }
-
-    // MARK: - App Info
-
-    private var appInfo: some View {
-        VStack(spacing: 4) {
-            Text("\(applicationInfo.name) Version \(applicationInfo.version)")
-                .font(.system(size: 13))
-                .foregroundColor(Color(.secondaryLabel))
-            Text("Made with love <3")
-                .font(.system(size: 13))
-                .foregroundColor(Color(.tertiaryLabel))
-        }
-        .padding(.vertical, 8)
-    }
-
     // MARK: - Modals
 
     @ViewBuilder
@@ -171,40 +159,82 @@ struct StatisticsView: View {
         withAnimation(.snappySpring) { activeDetail = destination }
     }
 
-    private func refreshAndPlayPendingAnimations() {
+    private func handleAppear() {
+        isVisible = true
         vm.refreshAnalytics()
-        playAnalyticsDeltaIfNeeded(vm.analyticsDelta)
+
+        if hasShownInitialStatistics {
+            animateCompletionRate(to: vm.completionRate, emphasized: false)
+            playAnalyticsDeltaIfNeeded(vm.analyticsDelta)
+        } else {
+            displayedCompletionRate = 0
+            hasShownInitialStatistics = true
+            if let delta = vm.analyticsDelta {
+                vm.consumeAnalyticsDelta(delta.id)
+            }
+            animateCompletionRate(to: vm.completionRate, emphasized: false)
+        }
+    }
+
+    private func handleDisappear() {
+        isVisible = false
+        cancelPendingAnimationReset()
+    }
+
+    private func animateCompletionRate(to completionRate: Int, emphasized: Bool) {
+        guard isVisible, hasShownInitialStatistics else { return }
+
+        if reduceMotion {
+            displayedCompletionRate = Double(completionRate)
+        } else {
+            withAnimation(emphasized ? StatisticsAnimationTiming.positiveRingAnimation : StatisticsAnimationTiming.entryRingAnimation) {
+                displayedCompletionRate = Double(completionRate)
+            }
+        }
     }
 
     private func playAnalyticsDeltaIfNeeded(_ delta: ProgressAnalyticsDelta?) {
-        guard let delta, delta.hasPositiveChanges else { return }
+        guard isVisible, hasShownInitialStatistics, let delta, delta.hasPositiveChanges else { return }
 
-        resetAnimationWorkItem?.cancel()
-        withAnimation(.snappySpring) {
+        resetAnimationTask?.cancel()
+        animateCompletionRate(to: vm.completionRate, emphasized: delta.didImproveCompletionRate)
+        let shouldShowCelebration = !reduceMotion
+        let shouldDelayCelebration = delta.didImproveCompletionRate && shouldShowCelebration
+
+        withAnimation(reduceMotion ? StatisticsAnimationTiming.reducedHighlightAnimation : StatisticsAnimationTiming.highlightAnimation) {
             highlightedFields = delta.improvedFields
-            celebrationID = delta.id
+            celebrationID = shouldShowCelebration && !shouldDelayCelebration ? delta.id : nil
         }
 
-        let resetWorkItem = DispatchWorkItem {
-            guard celebrationID == delta.id else { return }
-            withAnimation(.easeOut(duration: 0.22)) {
-                highlightedFields.removeAll()
-                celebrationID = nil
+        let resetTask = _Concurrency.Task {
+            if shouldDelayCelebration {
+                try? await _Concurrency.Task.sleep(nanoseconds: StatisticsAnimationTiming.completionCelebrationDelayNanoseconds)
+                guard !_Concurrency.Task.isCancelled else { return }
+                await MainActor.run {
+                    guard isVisible, highlightedFields == delta.improvedFields else { return }
+                    celebrationID = delta.id
+                }
+            }
+            try? await _Concurrency.Task.sleep(nanoseconds: StatisticsAnimationTiming.highlightDurationNanoseconds)
+            guard !_Concurrency.Task.isCancelled else { return }
+            await MainActor.run {
+                guard highlightedFields == delta.improvedFields else { return }
+                withAnimation(StatisticsAnimationTiming.reducedHighlightAnimation) {
+                    highlightedFields.removeAll()
+                    if celebrationID == delta.id {
+                        celebrationID = nil
+                    }
+                }
             }
         }
-        resetAnimationWorkItem = resetWorkItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.celebrationDuration, execute: resetWorkItem)
+        resetAnimationTask = resetTask
         vm.consumeAnalyticsDelta(delta.id)
     }
 
     private func cancelPendingAnimationReset() {
-        resetAnimationWorkItem?.cancel()
-        resetAnimationWorkItem = nil
+        resetAnimationTask?.cancel()
+        resetAnimationTask = nil
         highlightedFields.removeAll()
         celebrationID = nil
-    }
-
-    private enum Constants {
-        static let celebrationDuration: TimeInterval = 1.55
     }
 }
