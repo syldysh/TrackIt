@@ -17,18 +17,9 @@ struct CalendarWidgetView: View {
         let layout = currentLayout
 
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                WeekStripView()
-                    .environmentObject(vm)
-                    .opacity(layout.weekStripOpacity)
-                    .allowsHitTesting(!isExpanded)
-
-                expandedMonthGrid
-                    .opacity(layout.monthGridOpacity)
-                    .allowsHitTesting(isExpanded)
-            }
-            .frame(height: layout.contentHeight, alignment: .top)
-            .clipped()
+            monthGrid(gridYOffset: layout.gridYOffset)
+                .frame(height: layout.contentHeight, alignment: .top)
+                .clipped()
 
             expansionHitArea(expansionProgress: layout.expansionProgress)
         }
@@ -128,25 +119,28 @@ struct CalendarWidgetView: View {
         let contentHeight = (baseHeight + dragTranslation).clamped(to: collapsedHeight...expandedHeight)
         let distance = max(expandedHeight - collapsedHeight, 1)
         let progress = ((contentHeight - collapsedHeight) / distance).clamped(to: 0...1)
+        let selectedRowOffset = CGFloat(selectedWeekIndex) * Constants.Layout.weekRowHeight
+        let gridYOffset = -selectedRowOffset * (1 - progress)
 
         return CalendarExpansionLayout(
             contentHeight: contentHeight,
-            expansionProgress: progress,
-            monthGridOpacity: Double(progress),
-            weekStripOpacity: Double(1 - progress)
+            gridYOffset: gridYOffset,
+            expansionProgress: progress
         )
     }
 
     private var expandedContentHeight: CGFloat {
-        let rows = monthRowCount
+        let rows = monthGridModel.weeks.count
         let rowSpacing = CGFloat(max(rows - 1, 0)) * Constants.Layout.dayRowSpacing
         return Constants.Layout.weekdayHeaderHeight + CGFloat(rows) * Constants.Layout.dayCellHeight + rowSpacing + Constants.Layout.dayRowSpacing
     }
 
-    private var monthRowCount: Int {
-        let dayCount = RuDate.daysInMonth(year: vm.viewYear, month: vm.viewMonth)
-        let leadingEmptySlots = RuDate.firstWeekdayOfMonth(year: vm.viewYear, month: vm.viewMonth)
-        return max(1, (leadingEmptySlots + dayCount + 6) / 7)
+    private var monthGridModel: CalendarMonthGrid {
+        CalendarMonthGrid(year: vm.viewYear, month: vm.viewMonth)
+    }
+
+    private var selectedWeekIndex: Int {
+        monthGridModel.selectedWeekIndex(for: vm.selectedDate)
     }
 
     private func clampedDragTranslation(_ translation: CGFloat) -> CGFloat {
@@ -160,11 +154,9 @@ struct CalendarWidgetView: View {
         }
     }
 
-    // MARK: - Expanded Month Grid
+    // MARK: - Month Grid
 
-    private var expandedMonthGrid: some View {
-        let dc = RuDate.daysInMonth(year: vm.viewYear, month: vm.viewMonth)
-        let le = RuDate.firstWeekdayOfMonth(year: vm.viewYear, month: vm.viewMonth)
+    private func monthGrid(gridYOffset: CGFloat) -> some View {
         let cols = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
         return VStack(spacing: 0) {
@@ -180,52 +172,59 @@ struct CalendarWidgetView: View {
             .padding(.bottom, 4)
 
             LazyVGrid(columns: cols, spacing: 4) {
-                ForEach(0..<(le + dc), id: \.self) { index in
-                    if index < le {
-                        Color.clear.frame(height: Constants.Layout.dayCellHeight)
-                    } else {
-                        let dayNum = index - le + 1
-                        let date = RuDate.calendar.date(from: DateComponents(
-                            year: vm.viewYear, month: vm.viewMonth + 1, day: dayNum
-                        )) ?? RuDate.startOfDay(vm.selectedDate)
-                        let ds = RuDate.isoString(from: date)
-                        let isSelected = ds == vm.selectedStr
-                        let isToday = ds == vm.todayStr
-                        let count = vm.tasks(for: date).filter { !$0.isCompleted }.count
-
-                        Button {
-                            withAnimation(.snappySpring) { vm.selectDay(date) }
-                        } label: {
-                            ZStack {
-                                Text("\(dayNum)")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(isSelected ? .white : (isToday ? .brandAccent : Color(.label)))
-                                if count > 0 {
-                                    HStack(spacing: Constants.Layout.taskDotSize / 2) {
-                                        ForEach(0..<min(count, 3), id: \.self) { _ in
-                                            Circle()
-                                                .fill(isSelected ? Color.white.opacity(0.7) : .brandAccent)
-                                                .frame(width: Constants.Layout.taskDotSize, height: Constants.Layout.taskDotSize)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                                    .padding(.bottom, Constants.Layout.dayRowSpacing * 2)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: Constants.Layout.dayCellHeight)
-                            .background(
-                                isSelected ? Color.brandAccent :
-                                (isToday ? Color.brandAccent.opacity(0.12) : Color(.systemGray6))
-                            )
-                            .cornerRadius(10)
-                        }
-                    }
+                ForEach(monthGridModel.days, id: \.self) { date in
+                    monthDayButton(for: date)
                 }
             }
+            .offset(y: gridYOffset)
             .padding(.horizontal, 16)
             .padding(.bottom, Constants.Layout.dayRowSpacing)
         }
+    }
+
+    private func monthDayButton(for date: Date) -> some View {
+        let dayNum = RuDate.calendar.component(.day, from: date)
+        let ds = RuDate.isoString(from: date)
+        let isSelected = ds == vm.selectedStr
+        let isToday = ds == vm.todayStr
+        let count = vm.tasks(for: date).filter { !$0.isCompleted }.count
+
+        return Button {
+            withAnimation(.snappySpring) { vm.selectDay(date) }
+        } label: {
+            ZStack {
+                Text("\(dayNum)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(dayNumberColor(isSelected: isSelected, isToday: isToday))
+                if count > 0 {
+                    HStack(spacing: Constants.Layout.taskDotSize / 2) {
+                        ForEach(0..<min(count, 3), id: \.self) { _ in
+                            Circle()
+                                .fill(isSelected ? Color.white.opacity(0.7) : .brandAccent)
+                                .frame(width: Constants.Layout.taskDotSize, height: Constants.Layout.taskDotSize)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, Constants.Layout.dayRowSpacing * 2)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: Constants.Layout.dayCellHeight)
+            .background(dayBackground(isSelected: isSelected, isToday: isToday))
+            .cornerRadius(10)
+        }
+    }
+
+    private func dayNumberColor(isSelected: Bool, isToday: Bool) -> Color {
+        if isSelected { return .white }
+        if isToday { return .brandAccent }
+        return Color(.label)
+    }
+
+    private func dayBackground(isSelected: Bool, isToday: Bool) -> Color {
+        if isSelected { return .brandAccent }
+        if isToday { return Color.brandAccent.opacity(0.12) }
+        return Color(.systemGray6)
     }
 
     private enum Constants {
@@ -235,10 +234,11 @@ struct CalendarWidgetView: View {
         }
 
         enum Layout {
-            static let collapsedContentHeight: CGFloat = 62
             static let weekdayHeaderHeight: CGFloat = 29
             static let dayCellHeight: CGFloat = 44
             static let dayRowSpacing: CGFloat = 4
+            static let collapsedContentHeight = weekdayHeaderHeight + dayCellHeight + dayRowSpacing
+            static let weekRowHeight = dayCellHeight + dayRowSpacing
             static let taskDotSize: CGFloat = 3
             static let expansionHitAreaHeight: CGFloat = 21
         }

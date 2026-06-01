@@ -9,7 +9,6 @@ import CoreGraphics
 
 struct CalendarExpansionLayout {
     let contentHeight: CGFloat
+    let gridYOffset: CGFloat
     let expansionProgress: CGFloat
-    let monthGridOpacity: Double
-    let weekStripOpacity: Double
 }
