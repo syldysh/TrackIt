@@ -39,26 +39,19 @@ struct DayTimelineHourGridView: View {
     let onLongPressCancelled: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            ForEach(0..<24, id: \.self) { hour in
-                HStack(alignment: .top, spacing: 0) {
-                    Text(String(format: "%02d:00", hour))
-                        .font(.system(size: isCompact ? 10 : 11, weight: .medium))
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(width: isCompact ? 32 : 36, alignment: .trailing)
-                        .padding(.trailing, isCompact ? 6 : 8)
-                    VStack(spacing: 0) {
-                        Rectangle()
-                            .fill(Color(.separator).opacity(0.3))
-                            .frame(height: 0.5)
-                        Spacer(minLength: 0)
-                    }
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 0) {
+                ForEach(0..<Constants.hourCount, id: \.self) { hour in
+                    hourMarker(hour)
+                        .frame(height: hourHeight)
+                        .id("\(idPrefix)_hour_\(hour)")
+                        .contentShape(Rectangle())
                 }
-                .frame(height: hourHeight)
-                .id("\(idPrefix)_hour_\(hour)")
-                .contentShape(Rectangle())
             }
+            bottomBoundaryMarker
+                .offset(y: timelineHeight - Constants.bottomBoundaryHeight)
         }
+        .frame(height: timelineHeight, alignment: .top)
         .contentShape(Rectangle())
         .overlay {
             DayTimelineLongPressOverlay(
@@ -74,7 +67,47 @@ struct DayTimelineHourGridView: View {
         hourHeight < 60
     }
 
+    private var timelineHeight: CGFloat {
+        CGFloat(Constants.hourCount) * hourHeight
+    }
+
+    private func hourMarker(_ hour: Int) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(hourLabel(for: hour))
+                .font(.system(size: isCompact ? 10 : 11, weight: .medium))
+                .foregroundColor(Color(.secondaryLabel))
+                .frame(width: isCompact ? 32 : 36, alignment: .trailing)
+                .padding(.trailing, isCompact ? 6 : 8)
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color(.separator).opacity(0.3))
+                    .frame(height: 0.5)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var bottomBoundaryMarker: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            Text(hourLabel(for: Constants.hourCount))
+                .font(.system(size: isCompact ? 10 : 11, weight: .medium))
+                .foregroundColor(Color(.secondaryLabel))
+                .frame(width: isCompact ? 32 : 36, alignment: .trailing)
+                .padding(.trailing, isCompact ? 6 : 8)
+            Rectangle()
+                .fill(Color(.separator).opacity(0.3))
+                .frame(height: 0.5)
+        }
+        .frame(height: Constants.bottomBoundaryHeight, alignment: .bottom)
+    }
+
+    private func hourLabel(for hour: Int) -> String {
+        String(format: "%02d:00", hour % Constants.hourCount)
+    }
+
     private enum Constants {
+        static let hourCount = 24
+        static let bottomBoundaryHeight: CGFloat = 16
         static let longPressDuration: TimeInterval = 0.45
     }
 }

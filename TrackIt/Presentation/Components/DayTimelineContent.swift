@@ -17,6 +17,7 @@ struct DayTimelineContent: View {
     var hourHeight: CGFloat = 60
     var labelWidth: CGFloat = 44
     var horizontalPadding: CGFloat = 16
+    var bottomScrollInset: CGFloat = 72
     // Префикс для scroll-anchor ID (чтобы DayTimelineView и WeekDayModal не конфликтовали)
     var idPrefix: String = "day"
 
@@ -56,7 +57,9 @@ struct DayTimelineContent: View {
                     .overlay(alignment: .topLeading) { nowLine }
                     .padding(.horizontal, horizontalPadding)
                 completedSection
-                Spacer().frame(height: 100)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: bottomScrollInset)
             }
             .onAppear { scrollToRelevant(proxy) }
             .onChange(of: date) { _, _ in scrollToRelevant(proxy) }
@@ -78,7 +81,7 @@ struct DayTimelineContent: View {
         }
     }
 
-    // MARK: - Сетка 0–23
+    // MARK: - Сетка 00:00–24:00
 
     private var hourGrid: some View {
         DayTimelineHourGridView(
