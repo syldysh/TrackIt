@@ -37,6 +37,39 @@ final class ViewModelTaskOperationsTests: XCTestCase {
         XCTAssertEqual(call?.calendarSyncEnabled, false)
     }
 
+    func testPreparingTimelineDraftPrefillsTimeAndDurationWithoutSaving() {
+        let repository = MockTaskRepository()
+        let viewModel = makeCalendarViewModel(repository: repository)
+        let date = TestTaskFactory.date(day: 14)
+        let interval = DayTimelineInterval(startMinutes: 19 * 60 + 15, endMinutes: 20 * 60 + 15)
+
+        viewModel.addTaskVM.prepareAddTask(on: date, interval: interval)
+
+        XCTAssertTrue(viewModel.addTaskVM.showAddTask)
+        XCTAssertTrue(viewModel.addTaskVM.showTimePicker)
+        XCTAssertTrue(viewModel.addTaskVM.showDurationPicker)
+        XCTAssertEqual(viewModel.addTaskVM.newDuration, 60)
+        XCTAssertEqual(viewModel.addTaskVM.newTitle, "")
+        XCTAssertEqual(RuDate.startOfDay(viewModel.addTaskVM.newDate), RuDate.startOfDay(date))
+        XCTAssertEqual(RuDate.calendar.component(.hour, from: viewModel.addTaskVM.timeDate), 19)
+        XCTAssertEqual(RuDate.calendar.component(.minute, from: viewModel.addTaskVM.timeDate), 15)
+        XCTAssertTrue(repository.addScheduledTaskCalls.isEmpty)
+    }
+
+    func testWhitespaceAndNewlineTitleCannotBeSaved() {
+        let repository = MockTaskRepository()
+        let viewModel = makeCalendarViewModel(repository: repository)
+        let date = TestTaskFactory.date(day: 14)
+        let interval = DayTimelineInterval(startMinutes: 9 * 60, endMinutes: 10 * 60)
+
+        viewModel.addTaskVM.prepareAddTask(on: date, interval: interval)
+        viewModel.addTaskVM.newTitle = " \n "
+        viewModel.addTaskVM.commitAddTask()
+
+        XCTAssertFalse(viewModel.addTaskVM.canAddTask)
+        XCTAssertTrue(repository.addScheduledTaskCalls.isEmpty)
+    }
+
     func testDeletingTaskCallsRepositoryDelete() {
         let task = TestTaskFactory.make(title: "Delete me", isInbox: true)
         let repository = MockTaskRepository(tasks: [task])

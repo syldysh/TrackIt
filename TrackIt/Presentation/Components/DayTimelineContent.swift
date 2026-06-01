@@ -79,7 +79,7 @@ struct DayTimelineContent: View {
         DayTimelineHourGridView(
             hourHeight: hourHeight,
             idPrefix: idPrefix,
-            onHourTap: handleHourTap
+            onLongPress: handleGridLongPress
         )
     }
 
@@ -205,12 +205,13 @@ struct DayTimelineContent: View {
         }
     }
 
-    private func handleHourTap(_ hour: Int) {
+    private func handleGridLongPress(atY y: CGFloat) {
         if menuTaskID != nil {
             withAnimation(.snappySpring) { menuTaskID = nil }
         } else {
+            let interval = DayTimelineMetrics(hourHeight: hourHeight).defaultInterval(forY: y)
             withAnimation(.sheetSpring) {
-                vm.addTaskVM.prepareAddTaskAt(hour: hour, minute: 0, date: date)
+                vm.addTaskVM.prepareAddTask(on: date, interval: interval)
             }
         }
     }

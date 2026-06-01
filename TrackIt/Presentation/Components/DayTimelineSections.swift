@@ -34,7 +34,7 @@ struct DayTimelineUntimedSection<RowContent: View>: View {
 struct DayTimelineHourGridView: View {
     let hourHeight: CGFloat
     let idPrefix: String
-    let onHourTap: (Int) -> Void
+    let onLongPress: (CGFloat) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -55,13 +55,27 @@ struct DayTimelineHourGridView: View {
                 .frame(height: hourHeight)
                 .id("\(idPrefix)_hour_\(hour)")
                 .contentShape(Rectangle())
-                .onTapGesture { onHourTap(hour) }
             }
         }
+        .contentShape(Rectangle())
+        .gesture(longPressGesture)
     }
 
     private var isCompact: Bool {
         hourHeight < 60
+    }
+
+    private var longPressGesture: some Gesture {
+        LongPressGesture(minimumDuration: Constants.longPressDuration)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+            .onEnded { value in
+                guard case .second(true, let drag?) = value else { return }
+                onLongPress(drag.startLocation.y)
+            }
+    }
+
+    private enum Constants {
+        static let longPressDuration: TimeInterval = 0.45
     }
 }
 
